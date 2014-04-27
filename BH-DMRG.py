@@ -13,7 +13,7 @@ import threading
 from progressbar import *
 from speed import *
 
-numthreads = 15
+numthreads = 1
 
 L = 50
 sweeps = 4
@@ -59,8 +59,8 @@ def rundmrg(i, t, N):
 
 
 def runmain():
-    Ns = range(1, 2*L, 1)
-    ts = np.linspace(0.01, 0.3, 100).tolist()
+    Ns = range(1, 2*L+1, 2*L)
+    ts = np.linspace(0.01, 0.3, 10).tolist()
 
     E0res = np.zeros([len(ts), len(Ns)])
     E0res.fill(np.NaN)
@@ -70,6 +70,7 @@ def runmain():
     with concurrent.futures.ThreadPoolExecutor(max_workers=numthreads) as executor:
         futures = [executor.submit(rundmrg, i, tN[0], tN[1]) for i, tN in enumerate(itertools.product(ts, Ns))]
         for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
+        # for future in concurrent.futures.as_completed(futures):
             try:
                 res = future.result()
             except Exception as exc:
