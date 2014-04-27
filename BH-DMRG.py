@@ -9,9 +9,9 @@ import mathematica as m
 import datetime
 from progressbar import *
 
-numthreads = 6
+numthreads = 15
 
-L = 5
+L = 50
 sweeps = 4
 maxstates = 100
 Nmax = 7
@@ -56,7 +56,7 @@ def rundmrg(i, N, t):
 # Ns = [1,2,3]#range(1, 2*L, 1)
 # ts = [0.1]
 Ns = range(1, 2*L, 1)
-ts = np.linspace(0.01, 0.3, 5).tolist()
+ts = np.linspace(0.01, 0.3, 100).tolist()
 
 futures = []
 
