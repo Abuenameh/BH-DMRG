@@ -13,7 +13,7 @@ import threading
 from progressbar import *
 from speed import *
 
-numthreads = 1
+numthreads = 10
 
 L = 50
 sweeps = 4
@@ -69,8 +69,8 @@ def runmain():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=numthreads) as executor:
         futures = [executor.submit(rundmrg, i, tN[0], tN[1]) for i, tN in enumerate(itertools.product(ts, Ns))]
-        for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
-        # for future in concurrent.futures.as_completed(futures):
+        # for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
+        for future in concurrent.futures.as_completed(futures):
             try:
                 res = future.result()
             except Exception as exc:
