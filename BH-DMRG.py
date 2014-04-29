@@ -14,7 +14,7 @@ import threading
 import os
 from speed import *
 
-numthreads = 1
+numthreads = 15
 
 L = 50
 sweeps = 4
@@ -32,7 +32,6 @@ else:
     lattice = "inhomogeneous chain lattice"
 
 parmsbase = {
-    'test parameter' : "test",
     'TEMP_DIRECTORY' : "/mnt/BH-DMRG",
     'LATTICE' : lattice,
     'MODEL' : "boson Hubbard",
@@ -52,23 +51,15 @@ if delta > 0:
     parmsbase['delta'] = delta
     parmsbase['mu'] = 'delta*2*(random() - 0.5)'
 
-def rundmrg(i, t, N):
-    print(t, file=sys.stderr)
-    filenameprefixi = filenameprefix + str(i)
-    parms = [dict(parmsbase.items() + { 'N_total' : N, 't' : t }.items())]
+def rundmrg(i, t, N, it, iN):
+    parms = [dict(parmsbase.items() + { 'N_total' : N, 't' : t, 'it' : it, 'iN' : iN }.items())]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
-    res = pyalps.runApplication('/opt/alps/bin/dmrg', input_file, writexml=True)
-    # data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
-    # for s in data[0]:
-    #     if s.props['observable'] == 'Energy':
-    #         E0 = s.y[0]
-    # return [t, N, E0]
-    # return [ts[0], Ns[0], 0]
+    pyalps.runApplication('/opt/alps/bin/dmrg', input_file, writexml=True)
 
 
 def runmain():
+    ts = np.linspace(0.01, 0.3, 10).tolist()
     Ns = range(1, 2*L+1, 2*L)
-    ts = [ str(t) for t in np.linspace(0.01, 0.3, 3).tolist() ]
 
     E0res = np.zeros([len(ts), len(Ns)])
     E0res.fill(np.NaN)
@@ -76,24 +67,15 @@ def runmain():
     start = datetime.datetime.now()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=numthreads) as executor:
-        futures = [executor.submit(rundmrg, i, tN[0], tN[1]) for i, tN in enumerate(itertools.product(ts, Ns))]
+        futures = [executor.submit(rundmrg, i, tN[0][0], tN[0][1], tN[1][0], tN[1][1]) for i, tN in enumerate(zip(itertools.product(ts, Ns), itertools.product(range(0, len(ts)), range(0, len(Ns)))))]
         for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
-        # for future in concurrent.futures.as_completed(futures):
             pass
-            # try:
-            #     res = future.result()
-            # except Exception as exc:
-            #     print exc
-            # else:
-            #     E0res[ts.index(res[0])][Ns.index(res[1])] = res[2]
 
     data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     for d in data:
         for s in d:
             if s.props['observable'] == 'Energy':
-                print(ts, file=sys.stderr)
-                print(s.props['t'], file=sys.stderr)
-                E0res[ts.index(s.props['t'])][Ns.index(s.props['N_total'])] = s.y[0]
+                E0res[int(s.props['it'])][int(s.props['iN'])] = s.y[0]
 
     end = datetime.datetime.now()
     print(end - start)
