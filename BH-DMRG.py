@@ -44,22 +44,23 @@ parmsbase = {
 }
 
 bhdir = '/mnt/BH-DMRG'
+filenameprefix = 'BH_'
 
 if delta > 0:
     parmsbase['delta'] = delta
     parmsbase['mu'] = 'delta*2*(random() - 0.5)'
 
 def rundmrg(i, t, N):
-    filenameprefix = 'BH_' + str(i)
+    filenameprefixi = filenameprefix + str(i)
     parms = [dict(parmsbase.items() + { 'N_total' : N, 't' : t }.items())]
-    input_file = pyalps.writeInputFiles(filenameprefix, parms)
+    input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     res = pyalps.runApplication('/opt/alps/bin/dmrg', input_file, writexml=True)
     # data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     # for s in data[0]:
     #     if s.props['observable'] == 'Energy':
     #         E0 = s.y[0]
     # return [t, N, E0]
-    return [ts[0], Ns[0], 0]
+    # return [ts[0], Ns[0], 0]
 
 
 def runmain():
@@ -75,12 +76,19 @@ def runmain():
         futures = [executor.submit(rundmrg, i, tN[0], tN[1]) for i, tN in enumerate(itertools.product(ts, Ns))]
         for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
         # for future in concurrent.futures.as_completed(futures):
-            try:
-                res = future.result()
-            except Exception as exc:
-                print exc
-            else:
-                E0res[ts.index(res[0])][Ns.index(res[1])] = res[2]
+            pass
+            # try:
+            #     res = future.result()
+            # except Exception as exc:
+            #     print exc
+            # else:
+            #     E0res[ts.index(res[0])][Ns.index(res[1])] = res[2]
+
+    data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
+    for d in data:
+        for s in d:
+            if s.props['observable'] == 'Energy':
+                E0res[ts.index(s.props['t'])][Ns.index(s.props['N_total'])] = s.y[0]
 
     end = datetime.datetime.now()
     print end - start
