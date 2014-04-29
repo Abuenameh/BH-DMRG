@@ -1,3 +1,4 @@
+from __future__ import print_function
 __author__ = 'Abuenameh'
 
 import sys
@@ -21,7 +22,7 @@ maxstates = 100
 Nmax = 7
 
 if len(sys.argv) < 3:
-    print 'Insufficient number of command line arguments.'
+    print('Insufficient number of command line arguments.')
     quit(1)
 
 delta = float(sys.argv[2])
@@ -31,6 +32,7 @@ else:
     lattice = "inhomogeneous chain lattice"
 
 parmsbase = {
+    'test parameter' : "test",
     'TEMP_DIRECTORY' : "/mnt/BH-DMRG",
     'LATTICE' : lattice,
     'MODEL' : "boson Hubbard",
@@ -51,6 +53,7 @@ if delta > 0:
     parmsbase['mu'] = 'delta*2*(random() - 0.5)'
 
 def rundmrg(i, t, N):
+    print(t, file=sys.stderr)
     filenameprefixi = filenameprefix + str(i)
     parms = [dict(parmsbase.items() + { 'N_total' : N, 't' : t }.items())]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
@@ -65,7 +68,7 @@ def rundmrg(i, t, N):
 
 def runmain():
     Ns = range(1, 2*L+1, 2*L)
-    ts = np.linspace(0.01, 0.3, 1).tolist()
+    ts = [ str(t) for t in np.linspace(0.01, 0.3, 3).tolist() ]
 
     E0res = np.zeros([len(ts), len(Ns)])
     E0res.fill(np.NaN)
@@ -88,10 +91,12 @@ def runmain():
     for d in data:
         for s in d:
             if s.props['observable'] == 'Energy':
+                print(ts, file=sys.stderr)
+                print(s.props['t'], file=sys.stderr)
                 E0res[ts.index(s.props['t'])][Ns.index(s.props['N_total'])] = s.y[0]
 
     end = datetime.datetime.now()
-    print end - start
+    print(end - start)
 
     resi = sys.argv[1]
     resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
