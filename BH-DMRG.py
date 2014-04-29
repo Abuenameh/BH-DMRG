@@ -58,8 +58,8 @@ def rundmrg(i, t, N, it, iN):
 
 
 def runmain():
-    ts = np.linspace(0.01, 0.3, 10).tolist()
-    Ns = range(1, 2*L+1, 2*L)
+    ts = np.linspace(0.01, 0.3, 25).tolist()
+    Ns = range(1, 2*L+1, 1)
 
     E0res = np.zeros([len(ts), len(Ns)])
     E0res.fill(np.NaN)
