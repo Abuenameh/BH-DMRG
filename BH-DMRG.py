@@ -12,14 +12,16 @@ import gtk
 import gobject
 import threading
 import os
+from mathematica import mathformat
+from switch import switch
 from speed import *
 
-numthreads = 15
+numthreads = 4
 
 L = 50
 sweeps = 4
 maxstates = 100
-Nmax = 7
+nmax = 7
 
 if len(sys.argv) < 3:
     print('Insufficient number of command line arguments.')
@@ -31,8 +33,12 @@ if delta == 0:
 else:
     lattice = "inhomogeneous chain lattice"
 
+# bhdir = '/mnt/BH-DMRG'
+bhdir = '/tmp/BH-DMRG'
+filenameprefix = 'BH_'
+
 parmsbase = {
-    'TEMP_DIRECTORY' : "/mnt/BH-DMRG",
+    'TEMP_DIRECTORY' : bhdir,
     'LATTICE' : lattice,
     'MODEL' : "boson Hubbard",
     'CONSERVED_QUANTUMNUMBERS' : 'N',
@@ -40,12 +46,12 @@ parmsbase = {
     'NUMBER_EIGENVALUES' : 1,
     'L' : L,
     'MAXSTATES' : maxstates,
-    'Nmax' : Nmax,
-    'U' : 1
+    'Nmax' : nmax,
+    'U' : 1#,
+    # 'MEASURE_LOCAL[Local density]' : "n",
+    # 'MEASURE_LOCAL[Local density squared]' : "n2",
+    # 'MEASURE_CORRELATIONS[Correlation function]' : "bdag:b"
 }
-
-bhdir = '/mnt/BH-DMRG'
-filenameprefix = 'BH_'
 
 if delta > 0:
     parmsbase['delta'] = delta
@@ -58,11 +64,24 @@ def rundmrg(i, t, N, it, iN):
 
 
 def runmain():
-    ts = np.linspace(0.01, 0.3, 25).tolist()
-    Ns = range(1, 2*L+1, 1)
+    ts = np.linspace(0.01, 0.3, 1).tolist()
+    Ns = range(1, 2*L+1, 2*L)
 
-    E0res = np.zeros([len(ts), len(Ns)])
+    dims = [ len(ts), len(Ns) ]
+    ndims = dims + [ L ]
+    Cdims = dims + [ L, L ]
+
+    Trunc = np.zeros(dims)
+
+    E0res = np.zeros(dims)
+    nres = np.zeros(ndims)
+    n2res = np.zeros(ndims)
+    Cres = np.zeros(Cdims)
+
     E0res.fill(np.NaN)
+    nres.fill(np.NaN)
+    n2res.fill(np.NaN)
+    Cres.fill(np.NaN)
 
     start = datetime.datetime.now()
 
@@ -74,17 +93,47 @@ def runmain():
     data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     for d in data:
         for s in d:
-            if s.props['observable'] == 'Energy':
-                E0res[int(s.props['it'])][int(s.props['iN'])] = s.y[0]
+            it = int(s.props['it'])
+            iN = int(s.props['iN'])
+            for case in switch(s.props['observable']):
+                if case('Truncation error'):
+                    Trunc[it][iN] = s.y[0]
+                    break
+                if case('Energy'):
+                    E0res[it][iN] = s.y[0]
+                    break
+                if case('Local density'):
+                    nres[it][iN] = s.y[0]
+                    break
+                if case('Local density squared'):
+                    n2res[it][iN] = s.y[0]
+                    break
+                if case('Correlation function'):
+                    Cres[it][iN] = np.split(s.y[0], L)
+                    break
+            # if s.props['observable'] == 'Energy':
+            #     E0res[int(s.props['it'])][int(s.props['iN'])] = s.y[0]
 
     end = datetime.datetime.now()
-    print(end - start)
+    # print(end - start)
 
     resi = sys.argv[1]
-    resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
-    # resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
+    # resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
+    resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
     resf = open(resfile, 'w')
-    res = 'Lres[{0}]={1};\nsweeps[{0}]={2};\nmaxstates[{0}]={3};\nNmax[{0}]={4};\nNres[{0}]={5};\ntres[{0}]={6};\nE0res[{0}]={7};\nruntime[{0}]=\"{8}\";\n'.format(resi, L, sweeps, maxstates, Nmax, m.mathformat(Ns), m.mathformat(ts), m.mathformat(E0res), end-start)
+    # res = 'Lres[{0}]={1};\nsweeps[{0}]={2};\nmaxstates[{0}]={3};\nNmax[{0}]={4};\nNres[{0}]={5};\ntres[{0}]={6};\nE0res[{0}]={7};\nruntime[{0}]=\"{8}\";\n'.format(resi, L, sweeps, maxstates, Nmax, m.mathformat(Ns), m.mathformat(ts), m.mathformat(E0res), end-start)
+    res = ''
+    res += 'Lres[{0}]={1};\n'.format(resi, L)
+    res += 'sweeps[{0}]={1};\n'.format(resi, sweeps)
+    res += 'maxstates[{0}]={1};\n'.format(resi, maxstates)
+    res += 'nmax[{0}]={1};\n'.format(resi, nmax)
+    res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
+    res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
+    res += 'E0res[{0}]={1};\n'.format(resi, mathformat(E0res))
+    # res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
+    # res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
+    # res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
+    res += 'runtime[{0}]={1};\n'.format(resi, end - start)
     resf.write(res)
 
     gtk.main_quit()
