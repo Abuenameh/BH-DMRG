@@ -18,7 +18,7 @@ from speed import *
 
 numthreads = 4
 
-L = 50
+L = 30
 sweeps = 4
 maxstates = 100
 nmax = 7
@@ -33,8 +33,8 @@ if delta == 0:
 else:
     lattice = "inhomogeneous chain lattice"
 
-# bhdir = '/mnt/BH-DMRG'
-bhdir = '/tmp/BH-DMRG'
+bhdir = '/mnt/BH-DMRG'
+# bhdir = '/tmp/BH-DMRG'
 filenameprefix = 'BH_'
 
 parmsbase = {
@@ -118,8 +118,8 @@ def runmain():
     # print(end - start)
 
     resi = sys.argv[1]
-    # resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
-    resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
+    resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
+    # resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
     resf = open(resfile, 'w')
     # res = 'Lres[{0}]={1};\nsweeps[{0}]={2};\nmaxstates[{0}]={3};\nNmax[{0}]={4};\nNres[{0}]={5};\ntres[{0}]={6};\nE0res[{0}]={7};\nruntime[{0}]=\"{8}\";\n'.format(resi, L, sweeps, maxstates, Nmax, m.mathformat(Ns), m.mathformat(ts), m.mathformat(E0res), end-start)
     res = ''
@@ -130,9 +130,9 @@ def runmain():
     res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
     res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
     res += 'E0res[{0}]={1};\n'.format(resi, mathformat(E0res))
-    # res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
-    # res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
-    # res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
+    res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
+    res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
+    res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
     res += 'runtime[{0}]={1};\n'.format(resi, end - start)
     resf.write(res)
 
