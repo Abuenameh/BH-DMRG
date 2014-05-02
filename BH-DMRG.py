@@ -18,7 +18,7 @@ from speed import gprogress
 
 numthreads = 4
 
-L = 30
+L = 10
 sweeps = 4
 maxstates = 100
 nmax = 7
@@ -74,7 +74,7 @@ def runmain():
     ndims = dims + [L]
     Cdims = dims + [L, L]
 
-    Trunc = np.zeros(dims)
+    trunc = np.zeros(dims)
 
     E0res = np.zeros(dims)
     nres = np.zeros(ndims)
@@ -103,7 +103,7 @@ def runmain():
             iN = int(s.props['iN'])
             for case in switch(s.props['observable']):
                 if case('Truncation error'):
-                    Trunc[it][iN] = s.y[0]
+                    trunc[it][iN] = s.y[0]
                     break
                 if case('Energy'):
                     E0res[it][iN] = s.y[0]
@@ -128,6 +128,8 @@ def runmain():
         resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
     resf = open(resfile, 'w')
     res = ''
+    res += 'delta[{0}]={1};\n'.format(resi, delta)
+    res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
     res += 'Lres[{0}]={1};\n'.format(resi, L)
     res += 'sweeps[{0}]={1};\n'.format(resi, sweeps)
     res += 'maxstates[{0}]={1};\n'.format(resi, maxstates)
@@ -139,7 +141,7 @@ def runmain():
     res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
     res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
     res += 'cres[{0}]={1};\n'.format(resi, mathformat(cres))
-    res += 'runtime[{0}]={1};\n'.format(resi, end - start)
+    res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
     resf.write(res)
 
     gtk.main_quit()
