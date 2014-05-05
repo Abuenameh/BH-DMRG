@@ -23,7 +23,7 @@ sweeps = 20
 maxstates = 1000
 nmax = 7
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 4:
     print('Insufficient number of command line arguments.')
     quit(1)
 
@@ -56,9 +56,13 @@ parmsbase = {
 }
 
 if delta > 0:
-    parmsbase['delta'] = delta
-    parmsbase['mu'] = 'get(x,0.0493155, -0.0900821, -0.303556, 0.129114, 0.272998, -0.211608, \
-0.112826, 0.0688004, -0.215461, 0.307766)'
+    np.random.seed(int(sys.argv[3]))
+    mui = delta*2*np.random.random(L) - delta
+    # mui = [delta*2*(random() - 0.5) for r in xrange(L)]
+    parmsbase['mu'] = 'get(x,' + ",".join(mui) + ')'
+    # parmsbase['delta'] = delta
+    # parmsbase['mu'] = 'get(x,0.0493155, -0.0900821, -0.303556, 0.129114, 0.272998, -0.211608, \
+# 0.112826, 0.0688004, -0.215461, 0.307766)'
     # parmsbase['mu'] = 'mui(x)'
 
 
@@ -70,8 +74,8 @@ def rundmrg(i, t, N, it, iN):
 
 def runmain():
     ts = np.linspace(0.01, 0.3, 1).tolist()
-    Ns = range(1, 2 * L + 1, 2 * L)
-    Ns = [ 5 ]
+    Ns = range(1, 2 * L + 1, 1)
+    # Ns = [ 5 ]
 
     dims = [len(ts), len(Ns)]
     ndims = dims + [L]
@@ -142,6 +146,7 @@ def runmain():
     res += 'nmax[{0}]={1};\n'.format(resi, nmax)
     res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
     res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
+    res += 'mures[{0}]={1};\n'.format(resi, mathformat(mui))
     res += 'E0res[{0}]={1};\n'.format(resi, mathformat(E0res))
     res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
     res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
