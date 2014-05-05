@@ -57,7 +57,8 @@ parmsbase = {
 
 if delta > 0:
     parmsbase['delta'] = delta
-    parmsbase['mu'] = 'get(1,2)'
+    parmsbase['mu'] = 'get(x,0.0493155, -0.0900821, -0.303556, 0.129114, 0.272998, -0.211608, \
+    0.112826, 0.0688004, -0.215461, 0.307766)'
     # parmsbase['mu'] = 'delta*2*(random() - 0.5)'
 
 
