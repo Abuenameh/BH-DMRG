@@ -18,7 +18,7 @@ from speed import gprogress
 
 numthreads = 4
 
-L = 10
+L = 5
 sweeps = 4
 maxstates = 100
 nmax = 7
@@ -34,9 +34,9 @@ else:
     lattice = "inhomogeneous chain lattice"
 
 if sys.platform == 'darwin':
-    bhdir = '/mnt/BH-DMRG'
-elif sys.platform == 'linux2':
     bhdir = '/tmp/BH-DMRG'
+elif sys.platform == 'linux2':
+    bhdir = '/mnt/BH-DMRG'
 filenameprefix = 'BH_'
 
 parmsbase = {
@@ -57,7 +57,8 @@ parmsbase = {
 
 if delta > 0:
     parmsbase['delta'] = delta
-    parmsbase['mu'] = 'delta*2*(random() - 0.5)'
+    parmsbase['mu'] = 'get(1,2)'
+    # parmsbase['mu'] = 'delta*2*(random() - 0.5)'
 
 
 def rundmrg(i, t, N, it, iN):
@@ -68,7 +69,9 @@ def rundmrg(i, t, N, it, iN):
 
 def runmain():
     ts = np.linspace(0.01, 0.3, 1).tolist()
-    Ns = range(1, 2 * L + 1, 2 * L)
+    # ts = np.linspace(0.3, 0.3, 1).tolist()
+    Ns = range(1, 2 * L + 1, 1)
+    # Ns = [ 5 ]
 
     dims = [len(ts), len(Ns)]
     ndims = dims + [L]
