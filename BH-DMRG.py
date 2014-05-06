@@ -16,11 +16,11 @@ from mathematica import mathformat
 from switch import switch
 from speed import gprogress
 
-numthreads = 4
+numthreads = 15
 
-L = 10
-sweeps = 4
-maxstates = 100
+L = 12
+sweeps = 40
+maxstates = 1000
 nmax = 7
 
 if len(sys.argv) < 3:
@@ -57,12 +57,15 @@ parmsbase = {
 
 if delta > 0:
     np.random.seed(int(sys.argv[3]))
-    mui = delta*2*np.random.random(L) - delta
-    parmsbase['mu'] = 'get(x,' + ",".join(mui) + ')'
+    mu = delta*2*np.random.random(L) - delta
+    parmsbase['mu'] = 'get(x,' + ",".join([str(mui) for mui in mu]) + ')'
+    # parmsbase['mu'] = 'get(x,' + ",".join(str(mui)) + ')'
     # parmsbase['delta'] = delta
     # parmsbase['mu'] = 'get(x,0.0493155, -0.0900821, -0.303556, 0.129114, 0.272998, -0.211608, \
     # 0.112826, 0.0688004, -0.215461, 0.307766)'
     # parmsbase['mu'] = 'delta*2*(random() - 0.5)'
+else:
+    mu = 0
 
 
 def rundmrg(i, t, N, it, iN):
@@ -75,7 +78,8 @@ def runmain():
     ts = np.linspace(0.01, 0.3, 1).tolist()
     # ts = np.linspace(0.3, 0.3, 1).tolist()
     Ns = range(1, 2 * L + 1, 1)
-    # Ns = [ 5 ]
+    # Ns = range(1, L, 1)
+    Ns = [ 8 ]
 
     dims = [len(ts), len(Ns)]
     ndims = dims + [L]
@@ -143,7 +147,7 @@ def runmain():
     res += 'nmax[{0}]={1};\n'.format(resi, nmax)
     res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
     res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
-    res += 'mures[{0}]={1};\n'.format(resi, mathformat(mui))
+    res += 'mures[{0}]={1};\n'.format(resi, mathformat(mu))
     res += 'E0res[{0}]={1};\n'.format(resi, mathformat(E0res))
     res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
     res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
