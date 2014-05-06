@@ -19,8 +19,9 @@ from speed import gprogress
 numthreads = 15
 
 L = 12
-sweeps = 40
-maxstates = 1000
+sweeps = 4
+maxstates = 100
+warmup = 150
 nmax = 7
 
 if len(sys.argv) < 3:
@@ -51,6 +52,7 @@ parmsbase = {
     'NUMBER_EIGENVALUES': 1,
     'L': L,
     'MAXSTATES': maxstates,
+    'NUM_WARMUP_STATES': warmup,
     'Nmax': nmax,
     'U': 1
 }
@@ -79,7 +81,8 @@ def runmain():
     # ts = np.linspace(0.3, 0.3, 1).tolist()
     Ns = range(1, 2 * L + 1, 1)
     # Ns = range(1, L, 1)
-    Ns = [ 8 ]
+    Ns = range(L+1, 2*L+1, 1)
+    # Ns = [ 8 ]
 
     dims = [len(ts), len(Ns)]
     ndims = dims + [L]
@@ -144,6 +147,7 @@ def runmain():
     res += 'Lres[{0}]={1};\n'.format(resi, L)
     res += 'sweeps[{0}]={1};\n'.format(resi, sweeps)
     res += 'maxstates[{0}]={1};\n'.format(resi, maxstates)
+    res += 'warmup[{0}]={1};\n'.format(resi, warmup)
     res += 'nmax[{0}]={1};\n'.format(resi, nmax)
     res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
     res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
