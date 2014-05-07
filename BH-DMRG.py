@@ -18,10 +18,10 @@ from speed import gprogress
 
 numthreads = 15
 
-L = 12
+L = 20
 sweeps = 4
 maxstates = 100
-warmup = 150
+warmup = 200
 nmax = 7
 
 if len(sys.argv) < 3:
@@ -78,10 +78,14 @@ def rundmrg(i, t, N, it, iN):
 
 def runmain():
     ts = np.linspace(0.01, 0.3, 1).tolist()
+    # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
+    # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
     Ns = range(1, 2 * L + 1, 1)
+    # Ns = range(1,15,1)
+    # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
-    Ns = range(L+1, 2*L+1, 1)
+    # Ns = range(L+1, 2*L+1, 1)
     # Ns = [ 8 ]
 
     dims = [len(ts), len(Ns)]
