@@ -21,7 +21,7 @@ numthreads = 15
 L = 20
 sweeps = 4
 maxstates = 100
-warmup = 200
+warmup = 100
 nmax = 7
 
 if len(sys.argv) < 3:
@@ -86,7 +86,7 @@ def runmain():
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
     # Ns = range(L+1, 2*L+1, 1)
-    # Ns = [ 8 ]
+    Ns = [ 16 ]
 
     dims = [len(ts), len(Ns)]
     ndims = dims + [L]
