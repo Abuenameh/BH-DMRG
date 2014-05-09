@@ -19,10 +19,13 @@ from speed import gprogress
 numthreads = 15
 
 L = 20
-sweeps = 4
-maxstates = 100
+sweeps = 10
+maxstates = 1000
 warmup = 100
 nmax = 7
+truncerror = 1e-10
+perturb = 1000.0#0#1e-10
+reps = 1
 
 if len(sys.argv) < 3:
     print('Insufficient number of command line arguments.')
@@ -52,10 +55,14 @@ parmsbase = {
     'NUMBER_EIGENVALUES': 1,
     'L': L,
     'MAXSTATES': maxstates,
-    'NUM_WARMUP_STATES': warmup,
+    # 'NUM_WARMUP_STATES': warmup,
+    'PERTURBATION': perturb,
     'Nmax': nmax,
     'U': 1
 }
+
+if truncerror > 0:
+    parmsbase['TRUNCATION_ERROR'] = truncerror
 
 if delta > 0:
     np.random.seed(int(sys.argv[3]))
@@ -72,8 +79,11 @@ else:
 
 def rundmrg(i, t, N, it, iN):
     parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
+    # parms = [x for x in itertools.chain(parms, parms)]
+    parms = [x for x in itertools.chain.from_iterable(itertools.repeat(parms, reps))]
+    parms = [dict(parm.items() + {'ip': j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
-    pyalps.runApplication('/opt/alps/bin/dmrg', input_file, writexml=True)
+    pyalps.runApplication('/opt/alps/bin/dmrg2', input_file, writexml=True)
 
 
 def runmain():
@@ -86,9 +96,11 @@ def runmain():
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
     # Ns = range(L+1, 2*L+1, 1)
-    Ns = [ 16 ]
+    # Ns = [ 16 ]
+    # Ns = range(3,17,1)
+    Ns = range(1, 16, 1)
 
-    dims = [len(ts), len(Ns)]
+    dims = [len(ts), len(Ns), reps]
     ndims = dims + [L]
     Cdims = dims + [L, L]
 
@@ -106,6 +118,9 @@ def runmain():
     Cres.fill(np.NaN)
     cres.fill(np.NaN)
 
+    # E0res = [[[np.NaN for i in range(reps)] for j in range(len(Ns))] for k in range(len(ts))]
+    # E0res = [[[] for j in range(len(Ns))] for k in range(len(ts))]
+
     start = datetime.datetime.now()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=numthreads) as executor:
@@ -114,28 +129,32 @@ def runmain():
         for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
             pass
 
+    ip = np.zeros([len(ts), len(Ns)])
+
     data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     for d in data:
         for s in d:
             it = int(s.props['it'])
             iN = int(s.props['iN'])
+            ip = int(s.props['ip'])
             for case in switch(s.props['observable']):
                 if case('Truncation error'):
-                    trunc[it][iN] = s.y[0]
+                    trunc[it][iN][ip] = s.y[0]
                     break
                 if case('Energy'):
-                    E0res[it][iN] = s.y[0]
+                    E0res[it][iN][ip] = s.y[0]
+                    # E0res[it][iN].append(s.y[0])
                     break
                 if case('Local density'):
-                    nres[it][iN] = s.y[0]
+                    nres[it][iN][ip] = s.y[0]
                     break
                 if case('Local density squared'):
-                    n2res[it][iN] = s.y[0]
+                    n2res[it][iN][ip] = s.y[0]
                     break
                 if case('Correlation function'):
-                    Cres[it][iN] = np.split(s.y[0], L)
+                    Cres[it][iN][ip] = np.split(s.y[0], L)
                     break
-            cres[it][iN] = Cres[it][iN] / np.sqrt(np.outer(nres[it][iN], nres[it][iN]))
+            cres[it][iN][ip] = Cres[it][iN][ip] / np.sqrt(np.outer(nres[it][iN][ip], nres[it][iN][ip]))
 
     end = datetime.datetime.now()
 
@@ -152,6 +171,8 @@ def runmain():
     res += 'sweeps[{0}]={1};\n'.format(resi, sweeps)
     res += 'maxstates[{0}]={1};\n'.format(resi, maxstates)
     res += 'warmup[{0}]={1};\n'.format(resi, warmup)
+    res += 'truncerror[{0}]={1};\n'.format(resi, truncerror)
+    res += 'perturb[{0}]={1};\n'.format(resi, perturb)
     res += 'nmax[{0}]={1};\n'.format(resi, nmax)
     res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
     res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
