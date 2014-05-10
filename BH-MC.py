@@ -1,10 +1,12 @@
 __author__ = 'Abuenameh'
 
-__author__ = 'Abuenameh'
-
 import os
 import sys
 import pyalps
+import random
+import numpy as np
+
+L = 4
 
 if sys.platform == 'darwin':
     bhdir = '/tmp/BH-DMRG'
@@ -13,6 +15,9 @@ elif sys.platform == 'linux2':
 filenameprefix = 'BH_MC_'
 
 measurements = ['Energy', 'Density', 'Density^2', 'Local Density', 'Local Density^2', 'Stiffness']
+
+np.random.seed(0)
+mu = 2*np.random.random(L*L) - 0.5
 
 parms = []
 # for t in [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]:
@@ -28,10 +33,11 @@ for t in [0.01]:
             'LATTICE'        : "inhomogeneous square lattice",
             'MODEL'          : "boson Hubbard",
             'T'              : 0.005,
-            'L'              : 2,
+            'L'              : L,
             't'              : t,
             # 'mu'             : 0.5,
-            'mu'             : "0.5*2*(random()-0.5)",
+            # 'mu'             : "0.5*2*(random()-0.5)",
+            'mu'             : 'get(' + str(L) + '*x+y,' + ",".join([str(mui) for mui in mu]) + ')',
             'U'              : 1.0,
             'NONLOCAL'       : 0,
             'Nmax'           : 2,
