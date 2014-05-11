@@ -2,18 +2,20 @@ __author__ = 'Abuenameh'
 
 import os
 import sys
-import pyalps
-import gtk
-import gobject
 import threading
 import datetime
 import itertools
+import xml.etree.ElementTree as ET
+
+import pyalps
+import gtk
+import gobject
 import concurrent.futures
 import numpy as np
-import xml.etree.ElementTree as ET
 from mathematica import mathformat
 from switch import switch
 from speed import gprogress
+
 
 numthreads = 15
 
@@ -23,12 +25,14 @@ T = 0.01
 thermalization = 10000
 sweeps = 500000
 
+beta = 1.0 / T
+
 d = 2
 
 if d == 1:
     numsites = L
 elif d == 2:
-    numsites = L*L
+    numsites = L * L
 
 if len(sys.argv) < 3:
     print('Insufficient number of command line arguments.')
@@ -51,7 +55,6 @@ elif sys.platform == 'linux2':
     bhdir = '/mnt/BH-DMRG'
 filenameprefix = 'BH_MC_'
 
-# measurements = ['Energy', 'Stiffness', 'Density', 'Density^2', 'Local Density', 'Local Density^2']
 measurements = ['Energy', 'Stiffness', 'Density', 'Density^2', 'Local Density', 'Local Density * Global Density']
 
 nu = 0
@@ -60,52 +63,43 @@ if delta > 0:
         getnu = 'delta*2*(random()-0.5)'
     elif sys.platform == 'linux2':
         np.random.seed(int(sys.argv[3]))
-        nu = delta*2*np.random.random(L*L) - delta
+        nu = delta * 2 * np.random.random(L * L) - delta
         getnu = 'get(' + str(L) + '*x+y,' + ",".join([str(nui) for nui in nu]) + ')'
 else:
-    getnu = ''
-
+    getnu = '0'
 
 parmsbase = {
-            'TEMP_DIRECTORY': bhdir,
-            'MEASURE[Density]': 1,
-            'MEASURE[Density^2]': 1,
-            'MEASURE[Local Density]': 1,
-            # 'MEASURE_LOCAL[Local Density^2]': "n2",
-            'MEASURE[Local Compressibility]': 1,
-            'LATTICE'        : lattice,
-            'MODEL'          : "boson Hubbard",
-            'T'              : T,
-            'L'              : L,
-            'U'              : 1.0,
-            'delta'          : delta,
-            'NONLOCAL'       : 0,
-            'Nmax'           : nmax,
-            'DISORDERSEED'   : 12345,
-            'THERMALIZATION' : thermalization,
-            'SWEEPS'         : sweeps
-        }
+    'TEMP_DIRECTORY': bhdir,
+    'MEASURE[Density]': 1,
+    'MEASURE[Density^2]': 1,
+    'MEASURE[Local Density]': 1,
+    'MEASURE[Local Compressibility]': 1,
+    'LATTICE': lattice,
+    'MODEL': "boson Hubbard",
+    'T': T,
+    'L': L,
+    'U': 1.0,
+    'delta': delta,
+    'NONLOCAL': 0,
+    'Nmax': nmax,
+    'DISORDERSEED': 12345,
+    'THERMALIZATION': thermalization,
+    'SWEEPS': sweeps
+}
 
 parms = [parmsbase]
 
+
 def runmc(i, t, mu, it, imu):
-    # parms = [dict(parmsbase.items() + { 't': t, 'mu': str(mu) + '-' + getnu, 'it': it, 'imu': imu}.items())]
-    parms = [dict(parmsbase.items() + { 't': t, 'mu': str(mu), 'it': it, 'imu': imu}.items())]
+    parms = [dict(parmsbase.items() + {'t': t, 'mu': str(mu) + '-' + getnu, 'it': it, 'imu': imu}.items())]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication('/opt/alps/bin/worm', input_file, writexml=True, Tmin=5)
 
+
 def runmain():
-
-    def res(shape):
-        xres = np.empty(shape)
-        xres.fill(np.nan)
-        return xres
-
-    beta = 1.0/T
-
     ts = np.linspace(0.01, 0.3, 1).tolist()
     mus = np.linspace(0, 1, 0.5).tolist()
-    ts = [ 0.001]
+    ts = [0.001]
     mus = [0.5]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
@@ -123,43 +117,7 @@ def runmain():
     kres = np.empty(dims, dtype=object)
     nires = np.empty(ndims, dtype=object)
     ninres = np.empty(ndims, dtype=object)
-    n2ires = np.empty(ndims, dtype=object)
     kires = np.empty(ndims, dtype=object)
-
-    # E0res = np.zeros(dims)
-    # fsres = np.zeros(dims)
-    # nres = np.zeros(dims)
-    # n2res = np.zeros(dims)
-    # kres = np.zeros(dims)
-    # nires = np.zeros(ndims)
-    # n2ires = np.zeros(ndims)
-    # kires = np.zeros(ndims)
-    #
-    # E0res.fill(np.nan)
-    # fsres.fill(np.nan)
-    # nres.fill(np.nan)
-    # n2res.fill(np.nan)
-    # kres.fill(np.nan)
-    # nires.fill(np.nan)
-    # n2ires.fill(np.nan)
-    # kires.fill(np.nan)
-    #
-    # E0res = res(dims)
-    # E0reserr = res(dims)
-    # fsres = res(dims)
-    # fsreserr = res(dims)
-    # nres = res(dims)
-    # nreserr = res(dims)
-    # n2res = res(dims)
-    # n2reserr = res(dims)
-    # kres = res(dims)
-    # kreserr = res(dims)
-    # nires = res(ndims)
-    # nireserr = res(ndims)
-    # n2ires = res(ndims)
-    # n2ireserr = res(ndims)
-    # kires = res(ndims)
-    # kireserr = res(ndims)
 
     start = datetime.datetime.now()
 
@@ -181,46 +139,24 @@ def runmain():
             for case in switch(s.props['observable']):
                 if case('Energy'):
                     E0res[it][imu] = s.y[0]
-                    # E0res[it][imu] = s.y[0].mean
-                    # E0reserr[it][imu] = s.y[0].error
                     break
                 if case('Stiffness'):
-                    fsres[it][imu] = L*s.y[0]
-                    # fsres[it][imu] = (L*s.y[0]).mean
-                    # fsreserr[it][imu] = (L*s.y[0]).error
+                    fsres[it][imu] = L * s.y[0]
                     break
                 if case('Density'):
                     nres[it][imu] = s.y[0]
-                    # nres[it][imu] = (s.y[0]).mean
-                    # nreserr[it][imu] = (s.y[0]).error
                     break
                 if case('Density^2'):
                     n2res[it][imu] = s.y[0]
-                    # n2res[it][imu] = (s.y[0]).mean
-                    # n2reserr[it][imu] = (s.y[0]).error
                     break
                 if case('Local Density'):
                     nires[it][imu] = s.y
-                    # nires[it][imu] = (s.y).mean
-                    # nireserr[it][imu] = (s.y).error
                     break
                 if case('Local Density * Global Density'):
                     ninres[it][imu] = s.y
-                    # nires[it][imu] = (s.y).mean
-                    # nireserr[it][imu] = (s.y).error
                     break
-                # if case('Local Density^2'):
-                #     n2ires[it][imu] = (s.y[0]).mean
-                #     n2ireserr[it][imu] = (s.y[0]).error
-                #     break
-        kres[it][imu] = beta*(n2res[it][imu] - numsites*(nres[it][imu]**2))
-        kires[it][imu] = beta*(ninres[it][imu] - nires[it][imu]*nres[it][imu])
-        # kres[it][imu] = (beta*(n2res[it][imu] - numsites*(nres[it][imu]**2))).mean
-        # kreserr[it][imu] = (beta*(n2res[it][imu] - numsites*(nres[it][imu]**2))).error
-        # kires[it][imu] = beta*(n2ires[it][imu] - nires[it][imu]**2)
-    # for it, imu in itertools.product(ts, mus):
-    #     kres[it][imu] = beta*(n2res[it][imu] - nres[it][imu]**2)
-    #     kires[it][imu] = beta*(n2ires[it][imu] - nires[it][imu]**2)
+        kres[it][imu] = beta * (n2res[it][imu] - numsites * (nres[it][imu] ** 2))
+        kires[it][imu] = beta * (ninres[it][imu] - nires[it][imu] * nres[it][imu])
 
     end = datetime.datetime.now()
 
@@ -261,19 +197,21 @@ def runmain():
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
     resf.write(res)
 
-    print '{0}'.format(mathformat(finished))
-    print '{0}'.format(mathformat(E0res))
-    print '{0}'.format(mathformat(fsres))
-    print '{0}'.format(mathformat(kres))
-    print '{0}'.format(mathformat(nres))
-    print '{0}'.format(mathformat(n2res))
+    # print '{0}'.format(mathformat(finished))
+    # print '{0}'.format(mathformat(E0res))
+    # print '{0}'.format(mathformat(fsres))
+    # print '{0}'.format(mathformat(kres))
+    # print '{0}'.format(mathformat(nres))
+    # print '{0}'.format(mathformat(n2res))
 
     gtk.main_quit()
+
 
 def startmain():
     main_thread = threading.Thread(target=runmain);
     main_thread.start()
     return False
+
 
 if __name__ == '__main__':
     os.chdir(bhdir)
