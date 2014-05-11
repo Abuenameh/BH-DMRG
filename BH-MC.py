@@ -19,11 +19,13 @@ from speed import gprogress
 
 numthreads = 15
 
-L = 4
+L = 7
 nmax = 7
-T = 0.01
+T = 0.002
 thermalization = 10000
 sweeps = 500000
+sweeps = 100000
+limit = 600
 
 beta = 1.0 / T
 
@@ -93,14 +95,18 @@ parms = [parmsbase]
 def runmc(i, t, mu, it, imu):
     parms = [dict(parmsbase.items() + {'t': t, 'mu': str(mu) + '-' + getnu, 'it': it, 'imu': imu}.items())]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
-    pyalps.runApplication('/opt/alps/bin/worm', input_file, writexml=True, Tmin=5)
+    if limit > 0:
+        pyalps.runApplication('/opt/alps/bin/worm', input_file, writexml=True, Tmin=5, T=limit)
+    else:
+        pyalps.runApplication('/opt/alps/bin/worm', input_file, writexml=True, Tmin=5)
 
 
 def runmain():
-    ts = np.linspace(0.01, 0.3, 1).tolist()
-    mus = np.linspace(0, 1, 0.5).tolist()
-    ts = [0.001]
-    mus = [0.5]
+    ts = np.linspace(0.01, 0.08, 11).tolist()
+    mus = np.linspace(0, 1, 101).tolist()
+    # ts = [0.01]
+    # mus = [mus[10]]
+    # mus = [0.5]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
