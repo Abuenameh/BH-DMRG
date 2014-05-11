@@ -10,17 +10,25 @@ import datetime
 import itertools
 import concurrent.futures
 import numpy as np
+import xml.etree.ElementTree as ET
 from mathematica import mathformat
 from switch import switch
 from speed import gprogress
 
 numthreads = 15
 
-L = 2
+L = 4
 nmax = 7
-T = 0.005
+T = 0.01
 thermalization = 10000
 sweeps = 500000
+
+d = 2
+
+if d == 1:
+    numsites = L
+elif d == 2:
+    numsites = L*L
 
 if len(sys.argv) < 3:
     print('Insufficient number of command line arguments.')
@@ -30,7 +38,10 @@ seed = int(sys.argv[3])
 
 delta = float(sys.argv[2])
 if delta == 0:
-    lattice = "square lattice"
+    if d == 1:
+        lattice = "open chain lattice"
+    elif d == 2:
+        lattice = "square lattice"
 else:
     lattice = "inhomogeneous square lattice"
 
@@ -40,7 +51,8 @@ elif sys.platform == 'linux2':
     bhdir = '/mnt/BH-DMRG'
 filenameprefix = 'BH_MC_'
 
-measurements = ['Energy', 'Stiffness', 'Density', 'Density^2', 'Local Density', 'Local Density^2']
+# measurements = ['Energy', 'Stiffness', 'Density', 'Density^2', 'Local Density', 'Local Density^2']
+measurements = ['Energy', 'Stiffness', 'Density', 'Density^2', 'Local Density', 'Local Density * Global Density']
 
 nu = 0
 if delta > 0:
@@ -59,7 +71,8 @@ parmsbase = {
             'MEASURE[Density]': 1,
             'MEASURE[Density^2]': 1,
             'MEASURE[Local Density]': 1,
-            'MEASURE_LOCAL[Local Density^2]': "n2",
+            # 'MEASURE_LOCAL[Local Density^2]': "n2",
+            'MEASURE[Local Compressibility]': 1,
             'LATTICE'        : lattice,
             'MODEL'          : "boson Hubbard",
             'T'              : T,
@@ -81,38 +94,72 @@ def runmc(i, t, mu, it, imu):
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication('/opt/alps/bin/worm', input_file, writexml=True, Tmin=5)
 
-
 def runmain():
+
+    def res(shape):
+        xres = np.empty(shape)
+        xres.fill(np.nan)
+        return xres
+
     beta = 1.0/T
 
     ts = np.linspace(0.01, 0.3, 1).tolist()
     mus = np.linspace(0, 1, 0.5).tolist()
-    ts = [ 0.1]
+    ts = [ 0.001]
     mus = [0.5]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
 
     dims = [len(ts), len(mus)]
-    ndims = dims + [L]
+    ndims = dims + [numsites]
 
-    E0res = np.zeros(dims)
-    fsres = np.zeros(dims)
-    nres = np.zeros(dims)
-    n2res = np.zeros(dims)
-    kres = np.zeros(dims)
-    nires = np.zeros(ndims)
-    n2ires = np.zeros(ndims)
-    kires = np.zeros(ndims)
+    finished = np.empty(dims, dtype=bool)
 
-    E0res.fill(np.nan)
-    fsres.fill(np.nan)
-    nres.fill(np.nan)
-    n2res.fill(np.nan)
-    kres.fill(np.nan)
-    nires.fill(np.nan)
-    n2ires.fill(np.nan)
-    kires.fill(np.nan)
+    E0res = np.empty(dims, dtype=object)
+    fsres = np.empty(dims, dtype=object)
+    nres = np.empty(dims, dtype=object)
+    n2res = np.empty(dims, dtype=object)
+    kres = np.empty(dims, dtype=object)
+    nires = np.empty(ndims, dtype=object)
+    ninres = np.empty(ndims, dtype=object)
+    n2ires = np.empty(ndims, dtype=object)
+    kires = np.empty(ndims, dtype=object)
+
+    # E0res = np.zeros(dims)
+    # fsres = np.zeros(dims)
+    # nres = np.zeros(dims)
+    # n2res = np.zeros(dims)
+    # kres = np.zeros(dims)
+    # nires = np.zeros(ndims)
+    # n2ires = np.zeros(ndims)
+    # kires = np.zeros(ndims)
+    #
+    # E0res.fill(np.nan)
+    # fsres.fill(np.nan)
+    # nres.fill(np.nan)
+    # n2res.fill(np.nan)
+    # kres.fill(np.nan)
+    # nires.fill(np.nan)
+    # n2ires.fill(np.nan)
+    # kires.fill(np.nan)
+    #
+    # E0res = res(dims)
+    # E0reserr = res(dims)
+    # fsres = res(dims)
+    # fsreserr = res(dims)
+    # nres = res(dims)
+    # nreserr = res(dims)
+    # n2res = res(dims)
+    # n2reserr = res(dims)
+    # kres = res(dims)
+    # kreserr = res(dims)
+    # nires = res(ndims)
+    # nireserr = res(ndims)
+    # n2ires = res(ndims)
+    # n2ireserr = res(ndims)
+    # kires = res(ndims)
+    # kireserr = res(ndims)
 
     start = datetime.datetime.now()
 
@@ -122,33 +169,58 @@ def runmain():
         for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
             pass
 
-    data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix), measurements)
+    data = pyalps.loadMeasurements(pyalps.getResultFiles(prefix=filenameprefix), measurements)
     for d in data:
+        it = int(d[0].props['it'])
+        imu = int(d[0].props['imu'])
+        outfile = d[0].props['filename'][0:-12] + 'out.xml'
+        tree = ET.parse(outfile)
+        root = tree.getroot()
+        finished[it][imu] = root[0].attrib['status'] == 'finished'
         for s in d:
-            it = int(s.props['it'])
-            imu = int(s.props['imu'])
             for case in switch(s.props['observable']):
                 if case('Energy'):
                     E0res[it][imu] = s.y[0]
+                    # E0res[it][imu] = s.y[0].mean
+                    # E0reserr[it][imu] = s.y[0].error
                     break
                 if case('Stiffness'):
-                    fsres[it][imu] = s.y[0]
+                    fsres[it][imu] = L*s.y[0]
+                    # fsres[it][imu] = (L*s.y[0]).mean
+                    # fsreserr[it][imu] = (L*s.y[0]).error
                     break
                 if case('Density'):
                     nres[it][imu] = s.y[0]
+                    # nres[it][imu] = (s.y[0]).mean
+                    # nreserr[it][imu] = (s.y[0]).error
                     break
                 if case('Density^2'):
                     n2res[it][imu] = s.y[0]
+                    # n2res[it][imu] = (s.y[0]).mean
+                    # n2reserr[it][imu] = (s.y[0]).error
                     break
                 if case('Local Density'):
-                    nires[it][imu] = s.y[0]
+                    nires[it][imu] = s.y
+                    # nires[it][imu] = (s.y).mean
+                    # nireserr[it][imu] = (s.y).error
                     break
-                if case('Local Density^2'):
-                    n2ires[it][imu] = s.y[0]
+                if case('Local Density * Global Density'):
+                    ninres[it][imu] = s.y
+                    # nires[it][imu] = (s.y).mean
+                    # nireserr[it][imu] = (s.y).error
                     break
-    for it, imu in itertools.product(ts, mus):
-        kres[it][imu] = beta*(n2res[it][imu] - nres[it][imu]**2)
-        kires[it][imu] = beta*(n2ires[it][imu] - nires[it][imu]**2)
+                # if case('Local Density^2'):
+                #     n2ires[it][imu] = (s.y[0]).mean
+                #     n2ireserr[it][imu] = (s.y[0]).error
+                #     break
+        kres[it][imu] = beta*(n2res[it][imu] - numsites*(nres[it][imu]**2))
+        kires[it][imu] = beta*(ninres[it][imu] - nires[it][imu]*nres[it][imu])
+        # kres[it][imu] = (beta*(n2res[it][imu] - numsites*(nres[it][imu]**2))).mean
+        # kreserr[it][imu] = (beta*(n2res[it][imu] - numsites*(nres[it][imu]**2))).error
+        # kires[it][imu] = beta*(n2ires[it][imu] - nires[it][imu]**2)
+    # for it, imu in itertools.product(ts, mus):
+    #     kres[it][imu] = beta*(n2res[it][imu] - nres[it][imu]**2)
+    #     kires[it][imu] = beta*(n2ires[it][imu] - nires[it][imu]**2)
 
     end = datetime.datetime.now()
 
@@ -159,7 +231,9 @@ def runmain():
         resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-MC/res.' + str(resi) + '.txt'
     resf = open(resfile, 'w')
     res = ''
+    res += 'finished[{0}]={1};\n'.format(resi, mathformat(finished))
     res += 'delta[{0}]={1};\n'.format(resi, delta)
+    # res += 'dres[{0}]={1};\n'.format(resi, d)
     res += 'Lres[{0}]={1};\n'.format(resi, L)
     res += 'Tres[{0}]={1};\n'.format(resi, T)
     res += 'thermres[{0}]={1};\n'.format(resi, thermalization)
@@ -168,19 +242,31 @@ def runmain():
     res += 'nures[{0}]={1};\n'.format(resi, mathformat(nu))
     res += 'mures[{0}]={1};\n'.format(resi, mathformat(mus))
     res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
-    res += 'E0res[{0}]={1};\n'.format(resi, mathformat(E0res))
-    res += 'fsres[{0}]={1};\n'.format(resi, mathformat(fsres))
-    res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
-    res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
-    res += 'kres[{0}]={1};\n'.format(resi, mathformat(kres))
-    res += 'nires[{0}]={1};\n'.format(resi, mathformat(nires))
-    res += 'n2ires[{0}]={1};\n'.format(resi, mathformat(n2ires))
-    res += 'kires[{0}]={1};\n'.format(resi, mathformat(kires))
+    res += 'E0res[{0}]={1:mean};\n'.format(resi, mathformat(E0res))
+    res += 'E0reserr[{0}]={1:error};\n'.format(resi, mathformat(E0res))
+    res += 'fsres[{0}]={1:mean};\n'.format(resi, mathformat(fsres))
+    res += 'fsreserr[{0}]={1:error};\n'.format(resi, mathformat(fsres))
+    res += 'nres[{0}]={1:mean};\n'.format(resi, mathformat(nres))
+    res += 'nreserr[{0}]={1:error};\n'.format(resi, mathformat(nres))
+    res += 'n2res[{0}]={1:mean};\n'.format(resi, mathformat(n2res))
+    res += 'n2reserr[{0}]={1:error};\n'.format(resi, mathformat(n2res))
+    res += 'kres[{0}]={1:mean};\n'.format(resi, mathformat(kres))
+    res += 'kreserr[{0}]={1:error};\n'.format(resi, mathformat(kres))
+    res += 'nires[{0}]={1:mean};\n'.format(resi, mathformat(nires))
+    res += 'nireserr[{0}]={1:error};\n'.format(resi, mathformat(nires))
+    res += 'ninres[{0}]={1:mean};\n'.format(resi, mathformat(ninres))
+    res += 'ninreserr[{0}]={1:error};\n'.format(resi, mathformat(ninres))
+    res += 'kires[{0}]={1:mean};\n'.format(resi, mathformat(kires))
+    res += 'kireserr[{0}]={1:error};\n'.format(resi, mathformat(kires))
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
     resf.write(res)
 
-    print '{0}\n'.format(mathformat(nres))
-    print '{0}\n'.format(mathformat(n2res))
+    print '{0}'.format(mathformat(finished))
+    print '{0}'.format(mathformat(E0res))
+    print '{0}'.format(mathformat(fsres))
+    print '{0}'.format(mathformat(kres))
+    print '{0}'.format(mathformat(nres))
+    print '{0}'.format(mathformat(n2res))
 
     gtk.main_quit()
 
@@ -195,24 +281,4 @@ if __name__ == '__main__':
     gobject.timeout_add(1000, startmain)
     gtk.gdk.threads_init()
     gtk.main()
-
-
-
-os.chdir(bhdir)
-input_file = pyalps.writeInputFiles(filenameprefix,parms)
-
-res = pyalps.runApplication('/opt/alps/bin/worm',input_file,Tmin=5)
-# data = pyalps.loadMeasurements(pyalps.getResultFiles(prefix=filenameprefix), measurements)
-data = pyalps.loadMeasurements(pyalps.getResultFiles(prefix=filenameprefix),['Energy'])
-# print data
-
-# for d in data:
-#     for s in d:
-        # print s.props['observable']
-
-# res = pyalps.runApplication('/opt/alps/bin/sparsediag',input_file,Tmin=5)
-# data2 = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix),['Energy'])
-
-# print data[0][0].y
-# print data2[0][0][0].y
 
