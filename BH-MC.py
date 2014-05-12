@@ -21,11 +21,13 @@ numthreads = 15
 
 L = 7
 nmax = 7
-T = 0.002
+T = 0.01
 thermalization = 10000
+# thermalization = 1000000
 sweeps = 500000
-sweeps = 100000
-limit = 600
+# sweeps = 10000000
+# limit = 600
+limit=0
 
 beta = 1.0 / T
 
@@ -102,11 +104,12 @@ def runmc(i, t, mu, it, imu):
 
 
 def runmain():
-    ts = np.linspace(0.01, 0.08, 11).tolist()
+    ts = np.linspace(0.01, 0.08, 15).tolist()
     mus = np.linspace(0, 1, 101).tolist()
-    # ts = [0.01]
+    ts = [0.03]
     # mus = [mus[10]]
-    # mus = [0.5]
+    # ts = [ts[0]]
+    # mus = [0.25]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
