@@ -21,13 +21,16 @@ numthreads = 15
 
 L = 7
 nmax = 7
-T = 0.01
+T = 0.002
 thermalization = 10000
 # thermalization = 1000000
 sweeps = 500000
 # sweeps = 10000000
 # limit = 600
-limit=0
+# limit=0
+limit=300
+app="worm"
+# app="dirloop_sse"
 
 beta = 1.0 / T
 
@@ -98,16 +101,19 @@ def runmc(i, t, mu, it, imu):
     parms = [dict(parmsbase.items() + {'t': t, 'mu': str(mu) + '-' + getnu, 'it': it, 'imu': imu}.items())]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     if limit > 0:
-        pyalps.runApplication('/opt/alps/bin/worm', input_file, writexml=True, Tmin=5, T=limit)
+        pyalps.runApplication('/opt/alps/bin/'+app, input_file, writexml=True, Tmin=5, T=limit)
     else:
-        pyalps.runApplication('/opt/alps/bin/worm', input_file, writexml=True, Tmin=5)
+        pyalps.runApplication('/opt/alps/bin/'+app, input_file, writexml=True, Tmin=5)
 
 
 def runmain():
     ts = np.linspace(0.01, 0.08, 15).tolist()
     mus = np.linspace(0, 1, 101).tolist()
-    ts = [0.03]
-    # mus = [mus[10]]
+    # mus = np.linspace(0, 1, 51).tolist()
+    # mus = np.linspace(0, 0.25, 15).tolist()
+    # ts = [0.04]
+    # mus = [mus[1]]
+    # mus = mus[0:3]
     # ts = [ts[0]]
     # mus = [0.25]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
@@ -183,6 +189,7 @@ def runmain():
     res += 'Tres[{0}]={1};\n'.format(resi, T)
     res += 'thermres[{0}]={1};\n'.format(resi, thermalization)
     res += 'sweepsres[{0}]={1};\n'.format(resi, sweeps)
+    res += 'limitres[{0}]={1};\n'.format(resi, limit)
     res += 'nmax[{0}]={1};\n'.format(resi, nmax)
     res += 'nures[{0}]={1};\n'.format(resi, mathformat(nu))
     res += 'mures[{0}]={1};\n'.format(resi, mathformat(mus))
