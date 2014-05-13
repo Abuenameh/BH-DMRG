@@ -17,18 +17,18 @@ from switch import switch
 from speed import gprogress
 
 
-numthreads = 15
+numthreads = 5
 
-L = 7
+L = 16
 nmax = 7
-T = 0.002
+T = 0.01
 thermalization = 10000
 # thermalization = 1000000
 sweeps = 500000
 # sweeps = 10000000
 # limit = 600
 # limit=0
-limit=300
+limit=600
 app="worm"
 # app="dirloop_sse"
 
@@ -111,11 +111,12 @@ def runmain():
     mus = np.linspace(0, 1, 101).tolist()
     # mus = np.linspace(0, 1, 51).tolist()
     # mus = np.linspace(0, 0.25, 15).tolist()
-    # ts = [0.04]
+    ts = [0.01]
     # mus = [mus[1]]
     # mus = mus[0:3]
     # ts = [ts[0]]
-    # mus = [0.25]
+    # ts = np.linspace(0.01, 0.08, 18).tolist()
+    # mus = [0.5]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
