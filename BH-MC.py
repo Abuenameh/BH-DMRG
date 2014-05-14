@@ -17,7 +17,7 @@ from switch import switch
 from speed import gprogress
 
 
-numthreads = 5
+numthreads = 15
 
 L = 16
 nmax = 7
@@ -108,14 +108,14 @@ def runmc(i, t, mu, it, imu):
 
 def runmain():
     ts = np.linspace(0.01, 0.08, 15).tolist()
-    mus = np.linspace(0, 1, 101).tolist()
+    mus = np.linspace(0, 1, 51).tolist()
     # mus = np.linspace(0, 1, 51).tolist()
     # mus = np.linspace(0, 0.25, 15).tolist()
-    ts = [0.01]
+    # ts = [0.01]
     # mus = [mus[1]]
-    # mus = mus[0:3]
+    # mus = mus[0:15]
     # ts = [ts[0]]
-    # ts = np.linspace(0.01, 0.08, 18).tolist()
+    # ts = np.linspace(0.01, 0.08, 15).tolist()
     # mus = [0.5]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
