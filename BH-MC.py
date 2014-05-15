@@ -17,9 +17,9 @@ from switch import switch
 from speed import gprogress
 
 
-numthreads = 15
+numthreads = 5
 
-L = 16
+L = 60
 nmax = 7
 T = 0.01
 thermalization = 10000
@@ -111,9 +111,9 @@ def runmain():
     mus = np.linspace(0, 1, 51).tolist()
     # mus = np.linspace(0, 1, 51).tolist()
     # mus = np.linspace(0, 0.25, 15).tolist()
-    # ts = [0.01]
+    ts = [0.01]
     # mus = [mus[1]]
-    # mus = mus[0:15]
+    mus = mus[0:10]
     # ts = [ts[0]]
     # ts = np.linspace(0.01, 0.08, 15).tolist()
     # mus = [0.5]
