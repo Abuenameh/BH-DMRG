@@ -17,7 +17,7 @@ from switch import switch
 from speed import gprogress
 
 
-numthreads = 5
+numthreads = 15
 
 L = 60
 nmax = 7
@@ -28,7 +28,7 @@ sweeps = 500000
 # sweeps = 10000000
 # limit = 600
 # limit=0
-limit=600
+limit=1200
 app="worm"
 # app="dirloop_sse"
 
@@ -108,14 +108,14 @@ def runmc(i, t, mu, it, imu):
 
 def runmain():
     ts = np.linspace(0.01, 0.08, 15).tolist()
-    mus = np.linspace(0, 1, 51).tolist()
+    mus = np.linspace(0, 1, 101).tolist()
     # mus = np.linspace(0, 1, 51).tolist()
     # mus = np.linspace(0, 0.25, 15).tolist()
-    ts = [0.01]
+    # ts = [0.01]
     # mus = [mus[1]]
-    mus = mus[0:10]
+    # mus = mus[0:10]
     # ts = [ts[0]]
-    # ts = np.linspace(0.01, 0.08, 15).tolist()
+    ts = np.linspace(0, 0.01, 11).tolist()
     # mus = [0.5]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
