@@ -30,8 +30,8 @@ maxstates = 200#1000
 warmup = 100
 nmax = 7
 truncerror = 0#1e-10
-seed = 4
-reps = 1
+seed = 100
+reps = 3
 
 
 if len(sys.argv) < 5:
@@ -64,7 +64,7 @@ parmsbase = {
     'MODEL': "boson Hubbard",
     'CONSERVED_QUANTUMNUMBERS': 'N',
     'SWEEPS': sweeps,
-    'NUMBER_EIGENVALUES': 1,
+    'NUMBER_EIGENVALUES': 3,
     'L': L,
     'MAXSTATES': maxstates,
     # 'NUM_WARMUP_STATES': warmup,
@@ -112,7 +112,8 @@ def rundmrg(i, t, N, it, iN):
     parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
     # parms = [x for x in itertools.chain(parms, parms)]
     parms = [x for x in itertools.chain.from_iterable(itertools.repeat(parms, reps))]
-    parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
+    ips = [4,32,50]
+    parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + ips[j]}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication(app(appname), input_file, writexml=True)
 
@@ -136,6 +137,7 @@ def runmain(pipe):
     # Ns = [1]
     # Ns = range(7,13,1)
     Ns = range(1,13,1)
+    Ns = [5]
 
     dims = [len(ts), len(Ns), reps]
     ndims = dims + [L]
@@ -185,8 +187,6 @@ def runmain(pipe):
         pipe.send(len(futures))
         for future in concurrent.futures.as_completed(futures):
             pipe.send(1)
-        # for future in gprogress(concurrent.futures.as_completed(futures), size=len(futures)):
-        #     pass
 
     ip = np.zeros([len(ts), len(Ns)])
 
@@ -201,6 +201,8 @@ def runmain(pipe):
                     trunc[it][iN][ip] = s.y[0]
                     break
                 if case('Energy'):
+                    print('ip = ' + str(ip))
+                    print(s.y)
                     E0res[it][iN][ip] = s.y[0]
                     break
                 if case('Local density'):
@@ -218,8 +220,8 @@ def runmain(pipe):
 
     for it in range(len(ts)):
         for iN in range(len(Ns)):
-            m = max(E0res[it][iN])
-            ip = E0res[it][iN].index(m)
+            m = min(E0res[it][iN])
+            ip = np.where(E0res[it][iN] == m)[0][0]
             truncmin[it][iN] = trunc[it][iN][ip]
             E0minres[it][iN] = E0res[it][iN][ip]
             nminres[it][iN] = nres[it][iN][ip]
@@ -255,6 +257,12 @@ def runmain(pipe):
     res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
     res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
     res += 'cres[{0}]={1};\n'.format(resi, mathformat(cres))
+    res += 'truncmin[{0}]={1};\n'.format(resi, mathformat(truncmin))
+    res += 'E0minres[{0}]={1};\n'.format(resi, mathformat(E0minres))
+    res += 'nminres[{0}]={1};\n'.format(resi, mathformat(nminres))
+    res += 'n2minres[{0}]={1};\n'.format(resi, mathformat(n2minres))
+    res += 'Cminres[{0}]={1};\n'.format(resi, mathformat(Cminres))
+    res += 'cminres[{0}]={1};\n'.format(resi, mathformat(cminres))
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
     resf.write(res)
 
