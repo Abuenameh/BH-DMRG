@@ -24,7 +24,7 @@ numthreads = 6
 appname = 'dmrg'
 appname = 'mps_optim'
 
-L = 20
+L = 50
 sweeps = 20
 maxstates = 200#1000
 warmup = 100
@@ -32,9 +32,10 @@ nmax = 7
 truncerror = 0#1e-10
 seed = 100
 reps = 3
+neigen = 1
 
 
-if len(sys.argv) < 5:
+if len(sys.argv) < 6:
     print('Insufficient number of command line arguments.')
     quit(1)
 
@@ -56,7 +57,7 @@ parmsbase = {
     # 'seed': seed,
     'TEMP_DIRECTORY': bhdir,
     'storagedir': bhdir,
-    'ietl_jcd_gmres': 0,
+    # 'ietl_jcd_gmres': 0,
     'MEASURE_LOCAL[Local density]': "n",
     'MEASURE_LOCAL[Local density squared]': "n2",
     'MEASURE_CORRELATIONS[Correlation function]': "bdag:b",
@@ -64,7 +65,7 @@ parmsbase = {
     'MODEL': "boson Hubbard",
     'CONSERVED_QUANTUMNUMBERS': 'N',
     'SWEEPS': sweeps,
-    'NUMBER_EIGENVALUES': 3,
+    'NUMBER_EIGENVALUES': neigen,
     'L': L,
     'MAXSTATES': maxstates,
     # 'NUM_WARMUP_STATES': warmup,
@@ -79,7 +80,7 @@ if delta > 0:
     np.random.seed(int(sys.argv[3]))
     mu = delta*2*np.random.random(L) - delta
     # parmsbase['mu'] = 'sin(x)'
-    parmsbase['mu0'] = 'get(x,' + ",".join([str(mui) for mui in mu]) + ')'
+    parmsbase['mu'] = 'get(x,' + ",".join([str(mui) for mui in mu]) + ')'
     # parmsbase['mu'] = 'get(x,' + ",".join(str(mui)) + ')'
     # parmsbase['delta'] = delta
     # parmsbase['mu'] = 'get(x,0.0493155, -0.0900821, -0.303556, 0.129114, 0.272998, -0.211608, \
@@ -111,15 +112,17 @@ def app(app):
 def rundmrg(i, t, N, it, iN):
     parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
     # parms = [x for x in itertools.chain(parms, parms)]
-    parms = [x for x in itertools.chain.from_iterable(itertools.repeat(parms, reps))]
-    ips = [4,32,50]
-    parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + ips[j]}.items()) for j, parm in enumerate(parms)]
+    # parms = [x for x in itertools.chain.from_iterable(itertools.repeat(parms, reps))]
+    # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication(app(appname), input_file, writexml=True)
 
 
 def runmain(pipe):
-    ts = np.linspace(0.01, 0.3, 1).tolist()
+    ts = np.linspace(0.01, 0.3, 15).tolist()
+    ti = int(sys.argv[5])
+    if ti >= 0:
+        ts = [ts[ti]]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
@@ -136,10 +139,15 @@ def runmain(pipe):
     # Ns = [1,2,3,4,5,6]
     # Ns = [1]
     # Ns = range(7,13,1)
-    Ns = range(1,13,1)
-    Ns = [5]
+    # Ns = range(1,13,1)
+    # Ns = [6,7,8,9]
+    # Ns = range(1, L+1, 1)
+    # Ns = range(L+1,2*L+1,1)
+    # Ns = [L+1,L+2]
+    # Ns = [L+1]
+    #Do L+2 at some point
 
-    dims = [len(ts), len(Ns), reps]
+    dims = [len(ts), len(Ns), neigen]
     ndims = dims + [L]
     Cdims = dims + [L, L]
 
@@ -194,40 +202,49 @@ def runmain(pipe):
     for d in data:
         it = int(d[0].props['it'])
         iN = int(d[0].props['iN'])
-        ip = int(d[0].props['ip'])
+        # ip = int(d[0].props['ip'])
         for s in d:
             for case in switch(s.props['observable']):
                 if case('Truncation error'):
-                    trunc[it][iN][ip] = s.y[0]
+                    # trunc[it][iN][ip] = s.y[0]
+                    trunc[it][iN] = s.y
                     break
                 if case('Energy'):
-                    print('ip = ' + str(ip))
-                    print(s.y)
-                    E0res[it][iN][ip] = s.y[0]
+                    # E0res[it][iN][ip] = s.y[0]
+                    E0res[it][iN] = s.y
                     break
                 if case('Local density'):
-                    nres[it][iN][ip] = s.y[0]
+                    # nres[it][iN][ip] = s.y[0]
+                    nres[it][iN] = s.y
                     break
                 if case('Local density squared'):
-                    n2res[it][iN][ip] = s.y[0]
+                    # n2res[it][iN][ip] = s.y[0]
+                    n2res[it][iN] = s.y
                     break
                 if case('Correlation function'):
-                    for x, y in zip(s.x, s.y[0]):
-                        Cres[it][iN][ip][tuple(x)] = y
+                    # for x, y in zip(s.x, s.y[0]):
+                    #     Cres[it][iN][ip][tuple(x)] = y
+                    for ieig, sy in enumerate(s.y):
+                        for x, y in zip(s.x, sy):
+                            Cres[it][iN][ieig][tuple(x)] = y
                     break
-        Cres[it][iN][ip][range(L), range(L)] = nres[it][iN][ip]
-        cres[it][iN][ip] = Cres[it][iN][ip] / np.sqrt(np.outer(nres[it][iN][ip], nres[it][iN][ip]))
+        for ieig in range(neigen):
+            Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
+            cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
 
-    for it in range(len(ts)):
-        for iN in range(len(Ns)):
-            m = min(E0res[it][iN])
-            ip = np.where(E0res[it][iN] == m)[0][0]
-            truncmin[it][iN] = trunc[it][iN][ip]
-            E0minres[it][iN] = E0res[it][iN][ip]
-            nminres[it][iN] = nres[it][iN][ip]
-            n2minres[it][iN] = n2res[it][iN][ip]
-            Cminres[it][iN] = Cres[it][iN][ip]
-            cminres[it][iN] = cres[it][iN][ip]
+    try:
+        for it in range(len(ts)):
+            for iN in range(len(Ns)):
+                m = min(E0res[it][iN])
+                ieig = np.where(E0res[it][iN] == m)[0][0]
+                truncmin[it][iN] = trunc[it][iN][ieig]
+                E0minres[it][iN] = E0res[it][iN][ieig]
+                nminres[it][iN] = nres[it][iN][ieig]
+                n2minres[it][iN] = n2res[it][iN][ieig]
+                Cminres[it][iN] = Cres[it][iN][ieig]
+                cminres[it][iN] = cres[it][iN][ieig]
+    except Exception as e:
+        print(e.message)
 
 
     end = datetime.datetime.now()
@@ -241,6 +258,7 @@ def runmain(pipe):
         resfile = 'C:/Users/abuenameh/Dropbox/Server/BH-DMRG/res.' + str(resi) + '.txt'
     resf = open(resfile, 'w')
     res = ''
+    res += 'neigen[{0}]={1};\n'.format(resi, neigen)
     res += 'delta[{0}]={1};\n'.format(resi, delta)
     res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
     res += 'Lres[{0}]={1};\n'.format(resi, L)
