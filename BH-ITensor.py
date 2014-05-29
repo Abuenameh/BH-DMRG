@@ -11,7 +11,7 @@ import tempfile
 import shutil
 import subprocess
 import time
-from mathematica import mathformat
+from mathematica import mathformat, timedeltaformat
 from switch import switch
 from subprocess import PIPE, Popen
 
@@ -20,21 +20,21 @@ try:
 except:
     import pickle
 
-numthreads = 1
+numthreads = 6
 
-L = 12
+L = 20
 nmax = 7
 
 U = 1
 
-nsweeps = 10
+nsweeps = 5
 errgoal = 1e-16
 
 maxm = [20, 20, 100, 100, 200]
 minm = [20]
 cutoff = [1e-10]
 niter = [4, 3, 2]
-noise = [1e-7, 1e-8, 0]
+noise = [1e-6, 1e-7, 1e-8, 0]
 
 maxm += [maxm[-1]] * (nsweeps - len(maxm))
 minm += [minm[-1]] * (nsweeps - len(minm))
@@ -53,7 +53,7 @@ quiet = 'yes'
 seed = 100
 neigen = 1
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 4:
     print('Insufficient number of command line arguments.')
     quit(1)
 
@@ -62,6 +62,7 @@ delta = float(sys.argv[2])
 if delta > 0:
     np.random.seed(int(sys.argv[3]))
     mu = delta*2*np.random.random(L) - delta
+    # mu = [0.0244067519637,0.107594683186,0.0513816880358,0.0224415914984,-0.0381726003305,0.0729470565333,-0.0312063943687,0.195886500391,0.231831380251,-0.0582792405871,0.145862519041,0.0144474598765]
     mustr = ",".join([str(mui) for mui in mu])
 else:
     mu = 0
@@ -87,7 +88,7 @@ parameters {{{{
     t = {{0}}
     N = {{1}}
     U = {{2}}
-    mux = {{3}}
+    mu = {{3}}
 }}}}
 '''.format(L, nmax, nsweeps, errgoal, sweepsTable, quiet)
 
@@ -111,7 +112,7 @@ def rundmrg(it, t, iN, N):
     inputFile.write(parametersString.format(t, N, U, mustr))
     inputFile.close()
     outputFileName = 'itensor.{0}.{1}.out'.format(it, iN)
-    print(subprocess.list2cmdline([appdir + 'ITensorDMRG', inputFile.name]))
+    # print(subprocess.list2cmdline([appdir + 'ITensorDMRG', inputFile.name]))
     subprocess.call(subprocess.list2cmdline([appdir + 'ITensorDMRG', inputFile.name, outputFileName]), shell=True)
 
 def pad(a, size, v):
@@ -125,7 +126,7 @@ def run(pipe):
     #     ts = [ts[ti]]
     Ns = range(1, 2 * L + 1, 1)
     ts = np.linspace(0.01, 0.3, 1).tolist()
-    Ns = [4]
+    # Ns = [4]
     # Ns = range(1, 5, 1)
 
     dims = [len(ts), len(Ns)]
@@ -135,6 +136,7 @@ def run(pipe):
 
     trunc = np.zeros(dims)
     E0res = np.zeros(dims)
+    runtimeres = np.zeros(dims)
     Eires = np.zeros(Edims)
     nres = np.zeros(ndims)
     n2res = np.zeros(ndims)
@@ -142,8 +144,9 @@ def run(pipe):
     cres = np.zeros(Cdims)
 
     trunc.fill(np.NaN)
-    Eires.fill(np.NaN)
     E0res.fill(np.NaN)
+    runtimeres.fill(np.NaN)
+    Eires.fill(np.NaN)
     nres.fill(np.NaN)
     n2res.fill(np.NaN)
     Cres.fill(np.NaN)
@@ -169,7 +172,7 @@ def run(pipe):
                     Eires[it][iN] = pad(val, nsweeps, np.NaN)
                     break
                 if case('E0'):
-                    E0res[it][iN] = float(val[0])
+                    E0res[it][iN] = val[0]
                     break
                 if case('n'):
                     nres[it][iN] = val
@@ -179,6 +182,9 @@ def run(pipe):
                     break
                 if case('C'):
                     Cres[it][iN] = np.split(val,L)
+                    break
+                if case('runtime'):
+                    runtimeres[it][iN] = val[0]
                     break
         outputFile.close()
 
@@ -214,6 +220,7 @@ def run(pipe):
     res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
     res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
     res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
+    res += 'runtimei[{0}]={1};\n'.format(resi, timedeltaformat(runtimeres))
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
     resf.write(res)
 
