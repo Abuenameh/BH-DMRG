@@ -19,8 +19,13 @@ except:
 
 def enqueue_input(queue):
     while True:
-        data = pickle.load(sys.stdin)
-        queue.put(data)
+        try:
+            data = pickle.load(sys.stdin)
+            queue.put(data)
+        except Exception as e:
+            print e.message
+            queue.put(Empty)
+            break
 
 def poll(queue, prog):
     try:
@@ -28,8 +33,11 @@ def poll(queue, prog):
     except Empty:
         pass
     else:
-        queue.get()
-        prog.next()
+        obj = queue.get()
+        if(obj == Empty):
+            gtk.main_quit()
+        else:
+            prog.next()
     return True
 
 
