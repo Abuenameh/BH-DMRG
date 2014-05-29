@@ -91,7 +91,10 @@ parameters {{{{
 }}}}
 '''.format(L, nmax, nsweeps, errgoal, sweepsTable, quiet)
 
-appdir = '/Users/Abuenameh/Projects/ITensorDMRG/Release/'
+if sys.platform == 'darwin':
+    appdir = '/Users/Abuenameh/Projects/ITensorDMRG/Release/'
+elif sys.platform == 'win32':
+    appdir = 'C:/Users/abuenameh/Documents/Projects/ITensorDMRG/Release/'
 
 if sys.platform == 'darwin':
     bhdir = '/tmp/BH-DMRG'
@@ -99,6 +102,9 @@ elif sys.platform == 'linux2':
     bhdir = '/mnt/BH-DMRG'
 elif sys.platform == 'win32':
     bhdir = tempfile.mkdtemp()
+
+if not os.path.isdir(bhdir):
+    os.makedirs(bhdir)
 
 def rundmrg(it, t, iN, N):
     inputFile = open('itensor.{0}.{1}.in'.format(it, iN), 'w')
@@ -186,6 +192,8 @@ def run(pipe):
         resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-ITensor-DMRG/res.' + str(resi) + '.txt'
     elif sys.platform == 'win32':
         resfile = 'C:/Users/abuenameh/Dropbox/Server/BH-ITensor-DMRG/res.' + str(resi) + '.txt'
+    if not os.path.isdir(os.path.dirname(resfile)):
+        os.makedirs(os.path.dirname(resfile))
     resf = open(resfile, 'w')
     res = ''
     res += 'delta[{0}]={1};\n'.format(resi, delta)
