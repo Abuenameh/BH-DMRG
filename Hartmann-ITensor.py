@@ -11,6 +11,7 @@ import tempfile
 import shutil
 import subprocess
 import time
+import math
 from mathematica import mathformat, timedeltaformat
 from switch import switch
 from subprocess import PIPE, Popen
@@ -31,7 +32,15 @@ N = 1000
 g13 = 2.5e9
 g24 = 2.5e9
 delta = 1e12
-Delta = 
+Delta = -2e10
+alpha = 1.1e7
+g = math.sqrt(N) * g13
+
+def JW(W):
+    return alpha * (W * W) / (g * g + W * W)
+
+def UW(W):
+     return -(g24 * g24) / Delta * (g * g * W * W) / ((g * g + W * W) * (g * g + W * W))
 
 nsweeps = 5
 errgoal = -1#1e-16
@@ -60,18 +69,20 @@ noise = [str(i) for i in noise]
 
 quiet = 'yes'
 
-seed = 100
+# seed = 100
+seed = -1
 neigen = 1
 
 if len(sys.argv) < 4:
     print('Insufficient number of command line arguments.')
     quit(1)
 
-delta = float(sys.argv[2])
+ximax = float(sys.argv[2])
 
-if delta > 0:
-    np.random.seed(int(sys.argv[3]))
-    mu = delta*2*np.random.random(L) - delta
+if ximax > 0:
+    seed = int(sys.argv[3])
+    np.random.seed(seed)
+    mu = ximax*2*np.random.random(L) - ximax
     # mu = [0.0244067519637,0.107594683186,0.0513816880358,0.0224415914984,-0.0381726003305,0.0729470565333,-0.0312063943687,0.195886500391,0.231831380251,-0.0582792405871,0.145862519041,0.0144474598765]
     mustr = ",".join([str(mui) for mui in mu])
 else:
@@ -117,12 +128,13 @@ elif sys.platform == 'win32':
 if not os.path.isdir(bhdir):
     os.makedirs(bhdir)
 
-def rundmrg(it, t, iN, N):
-    inputFile = open('itensor.{0}.{1}.in'.format(it, iN), 'w')
-    inputFile.write(parametersString.format(t, N, U, mustr))
+def rundmrg(iW, W, iN, N):
+    inputFile = open('itensor.{0}.{1}.in'.format(iW, iN), 'w')
+    J = JW(W)
+    U = UW(W)
+    inputFile.write(parametersString.format(J, N, U, 0))
     inputFile.close()
-    outputFileName = 'itensor.{0}.{1}.out'.format(it, iN)
-    # print(subprocess.list2cmdline([appdir + 'ITensorDMRG', inputFile.name]))
+    outputFileName = 'itensor.{0}.{1}.out'.format(iW, iN)
     subprocess.call(subprocess.list2cmdline([appdir + 'ITensorDMRG', inputFile.name, outputFileName]), shell=True)
 
 def pad(a, size, v):
@@ -130,10 +142,11 @@ def pad(a, size, v):
     return np.concatenate((a,[v]*(size-l)))
 
 def run(pipe):
-    ts = np.linspace(0.01, 0.3, 15).tolist()
+    # ts = np.linspace(0.01, 0.3, 15).tolist()
     # ti = int(sys.argv[5])
     # if ti >= 0:
     #     ts = [ts[ti]]
+    Ws = np.linspace(4e10, 1.6e11, 1).tolist()
     Ns = range(1, 2 * L + 1, 1)
     # ts = np.linspace(0.01, 0.3, 1).tolist()
     # Ns = [4]
@@ -141,7 +154,7 @@ def run(pipe):
     # Ns = range(1, 5, 1)
     # Ns = range(1, 13, 1)
 
-    dims = [len(ts), len(Ns)]
+    dims = [len(Ws), len(Ns)]
     Edims = dims + [nsweeps]
     ndims = dims + [L]
     Cdims = dims + [L, L]
@@ -167,37 +180,37 @@ def run(pipe):
     start = datetime.datetime.now()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=numthreads) as executor:
-        futures = [executor.submit(rundmrg, it, t, iN, N) for (it, t), (iN, N) in
-                   itertools.product(enumerate(ts), enumerate(Ns))]
+        futures = [executor.submit(rundmrg, iW, W, iN, N) for (iW, W), (iN, N) in
+                   itertools.product(enumerate(Ws), enumerate(Ns))]
         pickle.dump(len(futures), pipe)
         for future in concurrent.futures.as_completed(futures):
             pickle.dump(1, pipe)
 
-    for it, iN in itertools.product(range(len(ts)), range(len(Ns))):
+    for iW, iN in itertools.product(range(len(Ws)), range(len(Ns))):
         try:
-            outputFile = open('itensor.{0}.{1}.out'.format(it, iN), 'r')
+            outputFile = open('itensor.{0}.{1}.out'.format(iW, iN), 'r')
             for line in outputFile:
                 lineSplit = line.split()
                 obs = lineSplit[0]
                 val = np.array([float(s) for s in lineSplit[1:]])
                 for case in switch(obs):
                     if case('Ei'):
-                        Eires[it][iN] = pad(val, nsweeps, np.NaN)
+                        Eires[iW][iN] = pad(val, nsweeps, np.NaN)
                         break
                     if case('E0'):
-                        E0res[it][iN] = val[0]
+                        E0res[iW][iN] = val[0]
                         break
                     if case('n'):
-                        nres[it][iN] = val
+                        nres[iW][iN] = val
                         break
                     if case('n2'):
-                        n2res[it][iN] = val
+                        n2res[iW][iN] = val
                         break
                     if case('C'):
-                        Cres[it][iN] = np.split(val,L)
+                        Cres[iW][iN] = np.split(val,L)
                         break
                     if case('runtime'):
-                        runtimeres[it][iN] = val[0]
+                        runtimeres[iW][iN] = val[0]
                         break
             outputFile.close()
         except Exception as e:
@@ -217,7 +230,8 @@ def run(pipe):
         os.makedirs(os.path.dirname(resfile))
     resf = open(resfile, 'w')
     res = ''
-    res += 'delta[{0}]={1};\n'.format(resi, delta)
+    res += 'seed[{0}]={1};\n'.format(resi, seed)
+    res += 'ximax[{0}]={1};\n'.format(resi, ximax)
     res += 'Lres[{0}]={1};\n'.format(resi, L)
     res += 'nsweeps[{0}]={1};\n'.format(resi, nsweeps)
     res += 'errgoal[{0}]={1};\n'.format(resi, mathformat(errgoal))
@@ -228,7 +242,7 @@ def run(pipe):
     res += 'noise[{0}]={1};\n'.format(resi, mathformat(noise))
     res += 'nmax[{0}]={1};\n'.format(resi, nmax)
     res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
-    res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
+    res += 'Wres[{0}]={1};\n'.format(resi, mathformat(Ws))
     res += 'mures[{0}]={1};\n'.format(resi, mathformat(mu))
     res += 'Eires[{0}]={1};\n'.format(resi, mathformat(Eires))
     res += 'E0res[{0}]={1};\n'.format(resi, mathformat(E0res))
