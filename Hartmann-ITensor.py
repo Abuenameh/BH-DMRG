@@ -21,9 +21,9 @@ try:
 except:
     import pickle
 
-numthreads = 6
+numthreads = 3
 
-L = 20
+L = 50
 nmax = 7
 
 U = 1
@@ -38,6 +38,9 @@ g = math.sqrt(N) * g13
 
 def JW(W):
     return alpha * (W * W) / (g * g + W * W)
+
+def JWij(Wi, Wj):
+    return alpha * (Wi * Wj) / (math.sqrt(g * g + Wi * Wi) * math.sqrt(g * g + Wj * Wj))
 
 def UW(W):
      return -(g24 * g24) / Delta * (g * g * W * W) / ((g * g + W * W) * (g * g + W * W))
@@ -79,15 +82,22 @@ if len(sys.argv) < 4:
 
 ximax = float(sys.argv[2])
 
+seed = int(sys.argv[3])
+
 if ximax > 0:
-    seed = int(sys.argv[3])
+    # seed = int(sys.argv[3])
     np.random.seed(seed)
-    mu = ximax*2*np.random.random(L) - ximax
+    # mu = ximax*2*np.random.random(L) - ximax
     # mu = [0.0244067519637,0.107594683186,0.0513816880358,0.0224415914984,-0.0381726003305,0.0729470565333,-0.0312063943687,0.195886500391,0.231831380251,-0.0582792405871,0.145862519041,0.0144474598765]
-    mustr = ",".join([str(mui) for mui in mu])
+    # mustr = ",".join([str(mui) for mui in mu])
+    mu = 0
+    xi = (1 + ximax*2*np.random.random(L) - ximax)
+    xistr = ",".join([str(xii) for xii in xi])
 else:
     mu = 0
-    mustr = str(mu)
+    # mustr = str(mu)
+    xi = 1
+    xistr = str(xi)
 
 sweepsTable = 'maxm minm cutoff niter noise\n'
 for row in zip(maxm, minm, cutoff, niter, noise):
@@ -130,8 +140,13 @@ if not os.path.isdir(bhdir):
 
 def rundmrg(iW, W, iN, N):
     inputFile = open('itensor.{0}.{1}.in'.format(iW, iN), 'w')
-    J = JW(W)
-    U = UW(W)
+    Ws = W * xi
+    if ximax > 0:
+        J = ','.join([str(Ji) for Ji in map(JWij, Ws[0:-1], Ws[1:])])
+        U = ','.join([str(Ui) for Ui in map(UW, Ws)])
+    else:
+        J = JW(W)
+        U = UW(W)
     inputFile.write(parametersString.format(J, N, U, 0))
     inputFile.close()
     outputFileName = 'itensor.{0}.{1}.out'.format(iW, iN)
@@ -146,7 +161,8 @@ def run(pipe):
     # ti = int(sys.argv[5])
     # if ti >= 0:
     #     ts = [ts[ti]]
-    Ws = np.linspace(4e10, 1.6e11, 1).tolist()
+    Ws = np.linspace(4e10, 2e11, 1).tolist()
+    # Ws = [np.linspace(4e10, 2e11, 10).tolist()[0]]
     Ns = range(1, 2 * L + 1, 1)
     # ts = np.linspace(0.01, 0.3, 1).tolist()
     # Ns = [4]
@@ -163,6 +179,9 @@ def run(pipe):
     E0res = np.zeros(dims)
     runtimeres = np.zeros(dims)
     Eires = np.zeros(Edims)
+    Js = np.zeros(ndims)
+    Us = np.zeros(ndims)
+    mus = np.zeros(ndims)
     nres = np.zeros(ndims)
     n2res = np.zeros(ndims)
     Cres = np.zeros(Cdims)
@@ -172,6 +191,9 @@ def run(pipe):
     E0res.fill(np.NaN)
     runtimeres.fill(np.NaN)
     Eires.fill(np.NaN)
+    Js.fill(np.NaN)
+    Us.fill(np.NaN)
+    mus.fill(np.NaN)
     nres.fill(np.NaN)
     n2res.fill(np.NaN)
     Cres.fill(np.NaN)
@@ -200,6 +222,15 @@ def run(pipe):
                     if case('E0'):
                         E0res[iW][iN] = val[0]
                         break
+                    if case('t'):
+                        Js[iW][iN] = val
+                        break
+                    if case('U'):
+                        Us[iW][iN] = val
+                        break
+                    if case('mu'):
+                        mus[iW][iN] = val
+                        break
                     if case('n'):
                         nres[iW][iN] = val
                         break
@@ -221,17 +252,18 @@ def run(pipe):
 
     resi = sys.argv[1]
     if sys.platform == 'darwin':
-        resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-ITensor-DMRG/res.' + str(resi) + '.txt'
+        resfile = '/Users/Abuenameh/Documents/Simulation Results/Hartmann-ITensor-DMRG/res.' + str(resi) + '.txt'
     elif sys.platform == 'linux2':
-        resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-ITensor-DMRG/res.' + str(resi) + '.txt'
+        resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/Hartmann-ITensor-DMRG/res.' + str(resi) + '.txt'
     elif sys.platform == 'win32':
-        resfile = 'C:/Users/abuenameh/Dropbox/Server/BH-ITensor-DMRG/res.' + str(resi) + '.txt'
+        resfile = 'C:/Users/abuenameh/Dropbox/Server/Hartmann-ITensor-DMRG/res.' + str(resi) + '.txt'
     if not os.path.isdir(os.path.dirname(resfile)):
         os.makedirs(os.path.dirname(resfile))
     resf = open(resfile, 'w')
     res = ''
     res += 'seed[{0}]={1};\n'.format(resi, seed)
     res += 'ximax[{0}]={1};\n'.format(resi, ximax)
+    res += 'xi[{0}]={1};\n'.format(resi, mathformat(xi))
     res += 'Lres[{0}]={1};\n'.format(resi, L)
     res += 'nsweeps[{0}]={1};\n'.format(resi, nsweeps)
     res += 'errgoal[{0}]={1};\n'.format(resi, mathformat(errgoal))
@@ -241,6 +273,9 @@ def run(pipe):
     res += 'niter[{0}]={1};\n'.format(resi, mathformat(niter))
     res += 'noise[{0}]={1};\n'.format(resi, mathformat(noise))
     res += 'nmax[{0}]={1};\n'.format(resi, nmax)
+    res += 'Js[{0}]={1};\n'.format(resi, mathformat(Js))
+    res += 'Us[{0}]={1};\n'.format(resi, mathformat(Us))
+    res += 'mus[{0}]={1};\n'.format(resi, mathformat(mus))
     res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
     res += 'Wres[{0}]={1};\n'.format(resi, mathformat(Ws))
     res += 'mures[{0}]={1};\n'.format(resi, mathformat(mu))
