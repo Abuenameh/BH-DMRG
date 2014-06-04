@@ -29,11 +29,10 @@ def enqueue_input(queue):
 
 def poll(queue, prog):
     try:
-        queue.get_nowait()
+        obj = queue.get_nowait()
     except Empty:
         pass
     else:
-        obj = queue.get()
         if(obj == Empty):
             gtk.main_quit()
         else:
@@ -48,7 +47,6 @@ def start():
     t.start()
     steps = q.get()
     prog = gprogress(range(steps), size=steps).__iter__()
-    prog.next()
     gobject.timeout_add(1, poll, q, prog)
     return False
 
