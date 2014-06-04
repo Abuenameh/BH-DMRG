@@ -20,9 +20,9 @@ try:
 except:
     import pickle
 
-numthreads = 6
+numthreads = 15
 
-L = 20
+L = 50
 nmax = 7
 
 U = 1
@@ -96,6 +96,8 @@ if sys.platform == 'darwin':
     appdir = '/Users/Abuenameh/Projects/ITensorDMRG/Release/'
 elif sys.platform == 'win32':
     appdir = 'C:/Users/abuenameh/Documents/Projects/ITensorDMRG/Release/'
+elif sys.platform == 'linux2':
+    appdir = '/home/ubuntu/ITensorDMRG/Release/'
 
 if sys.platform == 'darwin':
     bhdir = '/tmp/BH-DMRG'
@@ -113,7 +115,7 @@ def rundmrg(it, t, iN, N):
     inputFile.close()
     outputFileName = 'itensor.{0}.{1}.out'.format(it, iN)
     # print(subprocess.list2cmdline([appdir + 'ITensorDMRG', inputFile.name]))
-    subprocess.call(subprocess.list2cmdline([appdir + 'ITensorDMRG', inputFile.name, outputFileName]), shell=True)
+    subprocess.call(subprocess.list2cmdline([appdir + 'ITensorDMRG', 'run', 'setup.dat', inputFile.name, outputFileName]), shell=True)
 
 def pad(a, size, v):
     l = len(a)
@@ -125,7 +127,7 @@ def run(pipe):
     # if ti >= 0:
     #     ts = [ts[ti]]
     Ns = range(1, 2 * L + 1, 1)
-    ts = np.linspace(0.01, 0.3, 1).tolist()
+    ts = np.linspace(0.01, 0.3, 5).tolist()
     # Ns = [4]
     # Ns = range(1, 5, 1)
 
@@ -154,6 +156,9 @@ def run(pipe):
 
     start = datetime.datetime.now()
 
+    subprocess.call(subprocess.list2cmdline([appdir + 'ITensorDMRG', 'setup', 'setup.dat', str(L), str(nmax)]), shell=True)
+
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=numthreads) as executor:
         futures = [executor.submit(rundmrg, it, t, iN, N) for (it, t), (iN, N) in
                    itertools.product(enumerate(ts), enumerate(Ns))]
@@ -162,31 +167,34 @@ def run(pipe):
             pickle.dump(1, pipe)
 
     for it, iN in itertools.product(range(len(ts)), range(len(Ns))):
-        outputFile = open('itensor.{0}.{1}.out'.format(it, iN), 'r')
-        for line in outputFile:
-            lineSplit = line.split()
-            obs = lineSplit[0]
-            val = np.array([float(s) for s in lineSplit[1:]])
-            for case in switch(obs):
-                if case('Ei'):
-                    Eires[it][iN] = pad(val, nsweeps, np.NaN)
-                    break
-                if case('E0'):
-                    E0res[it][iN] = val[0]
-                    break
-                if case('n'):
-                    nres[it][iN] = val
-                    break
-                if case('n2'):
-                    n2res[it][iN] = val
-                    break
-                if case('C'):
-                    Cres[it][iN] = np.split(val,L)
-                    break
-                if case('runtime'):
-                    runtimeres[it][iN] = val[0]
-                    break
-        outputFile.close()
+        try:
+            outputFile = open('itensor.{0}.{1}.out'.format(it, iN), 'r')
+            for line in outputFile:
+                lineSplit = line.split()
+                obs = lineSplit[0]
+                val = np.array([float(s) for s in lineSplit[1:]])
+                for case in switch(obs):
+                    if case('Ei'):
+                        Eires[it][iN] = pad(val, nsweeps, np.NaN)
+                        break
+                    if case('E0'):
+                        E0res[it][iN] = val[0]
+                        break
+                    if case('n'):
+                        nres[it][iN] = val
+                        break
+                    if case('n2'):
+                        n2res[it][iN] = val
+                        break
+                    if case('C'):
+                        Cres[it][iN] = np.split(val,L)
+                        break
+                    if case('runtime'):
+                        runtimeres[it][iN] = val[0]
+                        break
+            outputFile.close()
+        except Exception as e:
+            print(e.message)
 
 
     end = datetime.datetime.now()
@@ -220,7 +228,10 @@ def run(pipe):
     res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
     res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
     res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
-    res += 'runtimei[{0}]={1};\n'.format(resi, timedeltaformat(runtimeres))
+    try:
+        res += 'runtimei[{0}]={1};\n'.format(resi, timedeltaformat(runtimeres))
+    except Exception as e:
+        print(e.message)
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
     resf.write(res)
 
