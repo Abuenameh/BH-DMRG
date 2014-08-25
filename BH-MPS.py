@@ -22,12 +22,12 @@ try:
 except:
     import pickle
 
-numthreads = 1
+numthreads = 6
 
 appname = 'dmrg'
 appname = 'mps_optim'
 
-L = 8
+L = 50
 sweeps = 20
 maxstates = 200  # 1000
 warmup = 100
@@ -37,7 +37,7 @@ seed = 100
 reps = 3
 neigen = 1
 
-if len(sys.argv) < 6:
+if len(sys.argv) < 5:
     print('Insufficient number of command line arguments.')
     quit(1)
 
@@ -80,11 +80,12 @@ if truncerror > 0:
     parmsbase['TRUNCATION_ERROR'] = truncerror
 
 if delta > 0:
+    mu = 0
     # np.random.seed(int(sys.argv[3]))
-    mu = delta * 2 * np.random.random(L) - delta
+    # mu = delta * 2 * np.random.random(L) - delta
     # parmsbase['mu'] = 'sin(x)'
 
-    parmsbase['mu'] = 'get(x,' + ",".join([str(mui) for mui in mu]) + ')'
+    # parmsbase['mu'] = 'get(x,' + ",".join([str(mui) for mui in mu]) + ')'
     # parmsbase['x'] = '1'
     # parmsbase['mu'] = 'get(x,1,2,3,4)'
 
@@ -174,8 +175,8 @@ def rundmrg(i, t, N, it, iN):
 
 
 def runmain(pipe):
-    ts = np.linspace(0.05, 0.3, 15).tolist()
-    ts = np.linspace(4e10, 2.5e11, 10).tolist()
+    # ts = np.linspace(0.05, 0.3, 15).tolist()
+    ts = np.linspace(4e10, 2.5e11, 5).tolist()
     ti = int(sys.argv[4])
     if ti >= 0:
         ts = [ts[ti]]
@@ -258,37 +259,40 @@ def runmain(pipe):
 
     data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     for d in data:
-        it = int(d[0].props['it'])
-        iN = int(d[0].props['iN'])
-        # ip = int(d[0].props['ip'])
-        for s in d:
-            for case in switch(s.props['observable']):
-                if case('Truncation error'):
-                    # trunc[it][iN][ip] = s.y[0]
-                    trunc[it][iN] = s.y
-                    break
-                if case('Energy'):
-                    # E0res[it][iN][ip] = s.y[0]
-                    E0res[it][iN] = s.y
-                    break
-                if case('Local density'):
-                    # nres[it][iN][ip] = s.y[0]
-                    nres[it][iN] = s.y
-                    break
-                if case('Local density squared'):
-                    # n2res[it][iN][ip] = s.y[0]
-                    n2res[it][iN] = s.y
-                    break
-                if case('Correlation function'):
-                    # for x, y in zip(s.x, s.y[0]):
-                    # Cres[it][iN][ip][tuple(x)] = y
-                    for ieig, sy in enumerate(s.y):
-                        for x, y in zip(s.x, sy):
-                            Cres[it][iN][ieig][tuple(x)] = y
-                    break
-        for ieig in range(neigen):
-            Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
-            cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
+        try:
+            it = int(d[0].props['it'])
+            iN = int(d[0].props['iN'])
+            # ip = int(d[0].props['ip'])
+            for s in d:
+                for case in switch(s.props['observable']):
+                    if case('Truncation error'):
+                        # trunc[it][iN][ip] = s.y[0]
+                        trunc[it][iN] = s.y
+                        break
+                    if case('Energy'):
+                        # E0res[it][iN][ip] = s.y[0]
+                        E0res[it][iN] = s.y
+                        break
+                    if case('Local density'):
+                        # nres[it][iN][ip] = s.y[0]
+                        nres[it][iN] = s.y
+                        break
+                    if case('Local density squared'):
+                        # n2res[it][iN][ip] = s.y[0]
+                        n2res[it][iN] = s.y
+                        break
+                    if case('Correlation function'):
+                        # for x, y in zip(s.x, s.y[0]):
+                        # Cres[it][iN][ip][tuple(x)] = y
+                        for ieig, sy in enumerate(s.y):
+                            for x, y in zip(s.x, sy):
+                                Cres[it][iN][ieig][tuple(x)] = y
+                        break
+            for ieig in range(neigen):
+                Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
+                cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
+        except Exception as e:
+            print(e.message)
 
     for it in range(len(ts)):
         for iN in range(len(Ns)):
