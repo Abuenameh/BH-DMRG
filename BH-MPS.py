@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 
 __author__ = 'abuenameh'
 
@@ -8,32 +9,33 @@ import numpy as np
 import itertools
 import concurrent.futures
 import datetime
-import gtk
-import gobject
 import threading
 import os
 import tempfile
 import shutil
 from mathematica import mathformat
 from switch import switch
-from speed import gprogress
-from multiprocessing import Process, Pipe
+from subprocess import PIPE, Popen
 
-numthreads = 6
+try:
+    import cPickle as pickle
+except:
+    import pickle
+
+numthreads = 1
 
 appname = 'dmrg'
 appname = 'mps_optim'
 
-L = 50
+L = 8
 sweeps = 20
-maxstates = 200#1000
+maxstates = 200  # 1000
 warmup = 100
 nmax = 7
-truncerror = 0#1e-10
+truncerror = 0  # 1e-10
 seed = 100
 reps = 3
 neigen = 1
-
 
 if len(sys.argv) < 6:
     print('Insufficient number of command line arguments.')
@@ -46,12 +48,13 @@ else:
     lattice = "inhomogeneous chain lattice"
 
 if sys.platform == 'darwin':
-    bhdir = '/tmp/BH-DMRG'
+    bhdir = '/tmp/BH-MPS'
 elif sys.platform == 'linux2':
     bhdir = '/mnt/BH-DMRG'
 elif sys.platform == 'win32':
     bhdir = tempfile.mkdtemp()
-filenameprefix = 'BH_'
+
+filenameprefix = ''
 
 parmsbase = {
     # 'seed': seed,
@@ -77,10 +80,14 @@ if truncerror > 0:
     parmsbase['TRUNCATION_ERROR'] = truncerror
 
 if delta > 0:
-    np.random.seed(int(sys.argv[3]))
-    mu = delta*2*np.random.random(L) - delta
+    # np.random.seed(int(sys.argv[3]))
+    mu = delta * 2 * np.random.random(L) - delta
     # parmsbase['mu'] = 'sin(x)'
+
     parmsbase['mu'] = 'get(x,' + ",".join([str(mui) for mui in mu]) + ')'
+    # parmsbase['x'] = '1'
+    # parmsbase['mu'] = 'get(x,1,2,3,4)'
+
     # parmsbase['mu'] = 'get(x,' + ",".join(str(mui)) + ')'
     # parmsbase['delta'] = delta
     # parmsbase['mu'] = 'get(x,0.0493155, -0.0900821, -0.303556, 0.129114, 0.272998, -0.211608, \
@@ -89,7 +96,12 @@ if delta > 0:
 else:
     mu = 0
 
-seed0 = int(sys.argv[4])
+seed = int(sys.argv[3])
+
+resfile = ''
+resf = ''
+resipath = ''
+
 
 def poll(pipe, prog):
     if pipe.poll():
@@ -97,11 +109,6 @@ def poll(pipe, prog):
         prog.next()
     return True
 
-def progressbar(pipe):
-    len = pipe.recv()
-    prog = gprogress(range(len), size=len).__iter__()
-    gobject.timeout_add(1, poll, pipe, prog)
-    gtk.main()
 
 def app(app):
     if sys.platform == 'win32':
@@ -109,8 +116,63 @@ def app(app):
     else:
         return '/opt/alps/bin/' + app
 
+
+speckles = {}
+
+
+def speckle(W):
+    if speckles.has_key(W):
+        return speckles[W]
+
+    np.random.seed(seed)
+
+    FFTD = 200
+    FFTL = int(delta * FFTD)
+
+    A = (4 / np.pi) * (W / FFTD)
+    a = [[A * np.exp(2 * np.pi * np.random.random() * 1j) if (i * i + j * j < 0.25 * FFTD * FFTD) else 0 for i in
+          range(-FFTL // 2, FFTL // 2, 1)] for j in range(-FFTL // 2, FFTL // 2, 1)]
+
+    b = np.fft.fft2(a)
+    s = np.real(b * np.conj(b))
+    s2 = np.sqrt(s)
+    # speckleW = s2[range(int(np.floor(L / 4)), int(np.ceil(3 * L / 4)), 1), range(int(np.floor(L / 4)), int(np.ceil(3 * L / 4)), 1)]
+    speckleW = s2.flatten()[0:L]
+    speckles[W] = speckleW
+    return speckleW
+
+
+N = 1000;
+g13 = 2.5e9;
+g24 = 2.5e9;
+dlta = 1.0e12;
+Delta = -2.0e10;
+alpha = 1.1e7;
+
+Ng = np.sqrt(N) * g13;
+
+def JW(W):
+    J = np.zeros(L)
+    for i in range(0, L-1):
+        print(i)
+        J[i] = alpha * W[i] * W[i+1] / (np.sqrt(Ng * Ng * W[i] * W[i]) * np.sqrt(Ng * Ng * W[i+1] * W[i+1]))
+    J[L-1] = alpha * W[L-1] * W[0] / (np.sqrt(Ng * Ng * W[L-1] * W[L-1]) * np.sqrt(Ng * Ng * W[0] * W[0]))
+    return J
+
+
+def UW(W):
+    return -2*(g24 * g24) / Delta * (Ng * Ng * W * W) / ((Ng * Ng + W * W) * (Ng * Ng + W * W))
+
+
 def rundmrg(i, t, N, it, iN):
-    parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
+    # parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
+    print(t)
+    print(speckle(t))
+    print(JW(speckle(t)))
+    print('get(x,' + ",".join([str(Ji) for Ji in JW(speckle(t))]) + ')')
+    parms = [dict(parmsbase.items() + {'N_total': N, 't': 'get(x,' + ",".join([str(Ji) for Ji in JW(speckle(t))]) + ')',
+                                       'U': 'get(x,' + ",".join([str(Ui) for Ui in UW(speckle(t))]) + ')', 'it': it,
+                                       'iN': iN}.items())]
     # parms = [x for x in itertools.chain(parms, parms)]
     # parms = [x for x in itertools.chain.from_iterable(itertools.repeat(parms, reps))]
     # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
@@ -119,8 +181,9 @@ def rundmrg(i, t, N, it, iN):
 
 
 def runmain(pipe):
-    ts = np.linspace(0.01, 0.3, 15).tolist()
-    ti = int(sys.argv[5])
+    ts = np.linspace(0.05, 0.3, 15).tolist()
+    ts = np.linspace(4e10, 2.5e11, 10).tolist()
+    ti = int(sys.argv[4])
     if ti >= 0:
         ts = [ts[ti]]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
@@ -145,7 +208,7 @@ def runmain(pipe):
     # Ns = range(L+1,2*L+1,1)
     # Ns = [L+1,L+2]
     # Ns = [L+1]
-    #Do L+2 at some point
+    # Do L+2 at some point
 
     dims = [len(ts), len(Ns), neigen]
     ndims = dims + [L]
@@ -192,9 +255,10 @@ def runmain(pipe):
     with concurrent.futures.ThreadPoolExecutor(max_workers=numthreads) as executor:
         futures = [executor.submit(rundmrg, i, tN[0][0], tN[0][1], tN[1][0], tN[1][1]) for i, tN in
                    enumerate(zip(itertools.product(ts, Ns), itertools.product(range(0, len(ts)), range(0, len(Ns)))))]
-        pipe.send(len(futures))
+        pickle.dump(len(futures), pipe)
         for future in concurrent.futures.as_completed(futures):
-            pipe.send(1)
+            future.result()
+            pickle.dump(1, pipe)
 
     ip = np.zeros([len(ts), len(Ns)])
 
@@ -223,7 +287,7 @@ def runmain(pipe):
                     break
                 if case('Correlation function'):
                     # for x, y in zip(s.x, s.y[0]):
-                    #     Cres[it][iN][ip][tuple(x)] = y
+                    # Cres[it][iN][ip][tuple(x)] = y
                     for ieig, sy in enumerate(s.y):
                         for x, y in zip(s.x, sy):
                             Cres[it][iN][ieig][tuple(x)] = y
@@ -232,9 +296,9 @@ def runmain(pipe):
             Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
             cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
 
-    try:
-        for it in range(len(ts)):
-            for iN in range(len(Ns)):
+    for it in range(len(ts)):
+        for iN in range(len(Ns)):
+            try:
                 m = min(E0res[it][iN])
                 ieig = np.where(E0res[it][iN] == m)[0][0]
                 truncmin[it][iN] = trunc[it][iN][ieig]
@@ -243,21 +307,21 @@ def runmain(pipe):
                 n2minres[it][iN] = n2res[it][iN][ieig]
                 Cminres[it][iN] = Cres[it][iN][ieig]
                 cminres[it][iN] = cres[it][iN][ieig]
-    except Exception as e:
-        print(e.message)
-
+            except Exception as e:
+                print(e.message)
 
     end = datetime.datetime.now()
 
-    resi = sys.argv[1]
-    if sys.platform == 'darwin':
-        resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
-    elif sys.platform == 'linux2':
-        resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
-    elif sys.platform == 'win32':
-        resfile = 'C:/Users/abuenameh/Dropbox/Server/BH-DMRG/res.' + str(resi) + '.txt'
-    resf = open(resfile, 'w')
+    # resi = sys.argv[1]
+    # if sys.platform == 'darwin':
+    # resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-MPS/res.' + str(resi) + '.txt'
+    # elif sys.platform == 'linux2':
+    #     resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
+    # elif sys.platform == 'win32':
+    #     resfile = 'C:/Users/abuenameh/Dropbox/Server/BH-DMRG/res.' + str(resi) + '.txt'
     res = ''
+    # Wres = [speckle(Wi) for Wi in ts]
+    res += 'Wres[{0}]={1};\n'.format(resi, mathformat([speckle(Wi) for Wi in ts]))
     res += 'neigen[{0}]={1};\n'.format(resi, neigen)
     res += 'delta[{0}]={1};\n'.format(resi, delta)
     res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
@@ -282,9 +346,13 @@ def runmain(pipe):
     res += 'Cminres[{0}]={1};\n'.format(resi, mathformat(Cminres))
     res += 'cminres[{0}]={1};\n'.format(resi, mathformat(cminres))
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
+
     resf.write(res)
 
-    gtk.main_quit()
+    shutil.make_archive(resipath, 'zip', resipath)
+    shutil.rmtree(resipath)
+
+    # gtk.main_quit()
 
 
 def startmain(pipe):
@@ -294,15 +362,36 @@ def startmain(pipe):
 
 
 if __name__ == '__main__':
-    os.chdir(bhdir)
-    [os.remove(f) for f in os.listdir(".")]
-    pipein, pipeout = Pipe()
-    proc = Process(target=progressbar, args=(pipein,))
-    proc.start()
-    gtk.gdk.threads_init()
-    gobject.timeout_add(1000, startmain, pipeout)
-    gtk.main()
+    resi = int(sys.argv[1])
+    if sys.platform == 'darwin':
+        respath = '/Users/Abuenameh/Documents/Simulation Results/BH-MPS/'
+    elif sys.platform == 'linux2':
+        respath = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/'
+    elif sys.platform == 'win32':
+        respath = 'C:/Users/abuenameh/Dropbox/Server/BH-DMRG/'
+    if not os.path.exists(respath):
+        try:
+            os.makedirs(respath)
+        except:
+            pass
+    resipath = respath + 'res.' + str(resi)
+    resfile = resipath + '.txt'
+    while os.path.isfile(resfile):
+        resi += 1
+        resipath = respath + 'res.' + str(resi)
+        resfile = resipath + '.txt'
+    resf = open(resfile, 'w')
+    datadir = resipath + '/'
+    os.makedirs(datadir)
+    filenameprefix = datadir + 'BH_'
+
+    # shutil.rmtree(bhdir)
+    # os.chdir(bhdir)
+    # [os.remove(f) for f in os.listdir(".")]
+    proc = Popen(['python', os.path.dirname(os.path.realpath(__file__)) + '/ProgressDialog.py'], stdin=PIPE)
+    pipe = proc.stdin
+    runmain(pipe)
     proc.terminate()
-    if sys.platform == 'win32':
-        os.chdir(os.path.expanduser('~'))
-        shutil.rmtree(bhdir)
+    # if sys.platform == 'win32':
+    # os.chdir(os.path.expanduser('~'))
+    # shutil.rmtree(bhdir)
