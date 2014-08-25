@@ -136,7 +136,6 @@ def speckle(W):
     b = np.fft.fft2(a)
     s = np.real(b * np.conj(b))
     s2 = np.sqrt(s)
-    # speckleW = s2[range(int(np.floor(L / 4)), int(np.ceil(3 * L / 4)), 1), range(int(np.floor(L / 4)), int(np.ceil(3 * L / 4)), 1)]
     speckleW = s2.flatten()[0:L]
     speckles[W] = speckleW
     return speckleW
@@ -145,7 +144,6 @@ def speckle(W):
 N = 1000;
 g13 = 2.5e9;
 g24 = 2.5e9;
-dlta = 1.0e12;
 Delta = -2.0e10;
 alpha = 1.1e7;
 
@@ -154,9 +152,8 @@ Ng = np.sqrt(N) * g13;
 def JW(W):
     J = np.zeros(L)
     for i in range(0, L-1):
-        print(i)
-        J[i] = alpha * W[i] * W[i+1] / (np.sqrt(Ng * Ng * W[i] * W[i]) * np.sqrt(Ng * Ng * W[i+1] * W[i+1]))
-    J[L-1] = alpha * W[L-1] * W[0] / (np.sqrt(Ng * Ng * W[L-1] * W[L-1]) * np.sqrt(Ng * Ng * W[0] * W[0]))
+        J[i] = alpha * W[i] * W[i+1] / (np.sqrt(Ng * Ng + W[i] * W[i]) * np.sqrt(Ng * Ng + W[i+1] * W[i+1]))
+    J[L-1] = alpha * W[L-1] * W[0] / (np.sqrt(Ng * Ng + W[L-1] * W[L-1]) * np.sqrt(Ng * Ng + W[0] * W[0]))
     return J
 
 
@@ -166,10 +163,6 @@ def UW(W):
 
 def rundmrg(i, t, N, it, iN):
     # parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
-    print(t)
-    print(speckle(t))
-    print(JW(speckle(t)))
-    print('get(x,' + ",".join([str(Ji) for Ji in JW(speckle(t))]) + ')')
     parms = [dict(parmsbase.items() + {'N_total': N, 't': 'get(x,' + ",".join([str(Ji) for Ji in JW(speckle(t))]) + ')',
                                        'U': 'get(x,' + ",".join([str(Ui) for Ui in UW(speckle(t))]) + ')', 'it': it,
                                        'iN': iN}.items())]
@@ -190,6 +183,7 @@ def runmain(pipe):
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
     Ns = range(1, 2 * L + 1, 1)
+    # Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
@@ -312,16 +306,10 @@ def runmain(pipe):
 
     end = datetime.datetime.now()
 
-    # resi = sys.argv[1]
-    # if sys.platform == 'darwin':
-    # resfile = '/Users/Abuenameh/Documents/Simulation Results/BH-MPS/res.' + str(resi) + '.txt'
-    # elif sys.platform == 'linux2':
-    #     resfile = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/res.' + str(resi) + '.txt'
-    # elif sys.platform == 'win32':
-    #     resfile = 'C:/Users/abuenameh/Dropbox/Server/BH-DMRG/res.' + str(resi) + '.txt'
     res = ''
-    # Wres = [speckle(Wi) for Wi in ts]
     res += 'Wres[{0}]={1};\n'.format(resi, mathformat([speckle(Wi) for Wi in ts]))
+    res += 'Jres[{0}]={1};\n'.format(resi, mathformat([JW(speckle(Wi)) for Wi in ts]))
+    res += 'Ures[{0}]={1};\n'.format(resi, mathformat([UW(speckle(Wi)) for Wi in ts]))
     res += 'neigen[{0}]={1};\n'.format(resi, neigen)
     res += 'delta[{0}]={1};\n'.format(resi, delta)
     res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
@@ -352,13 +340,11 @@ def runmain(pipe):
     shutil.make_archive(resipath, 'zip', resipath)
     shutil.rmtree(resipath)
 
-    # gtk.main_quit()
 
-
-def startmain(pipe):
-    main_thread = threading.Thread(target=runmain, args=(pipe,));
-    main_thread.start()
-    return False
+# def startmain(pipe):
+#     main_thread = threading.Thread(target=runmain, args=(pipe,));
+#     main_thread.start()
+#     return False
 
 
 if __name__ == '__main__':
@@ -385,13 +371,7 @@ if __name__ == '__main__':
     os.makedirs(datadir)
     filenameprefix = datadir + 'BH_'
 
-    # shutil.rmtree(bhdir)
-    # os.chdir(bhdir)
-    # [os.remove(f) for f in os.listdir(".")]
     proc = Popen(['python', os.path.dirname(os.path.realpath(__file__)) + '/ProgressDialog.py'], stdin=PIPE)
     pipe = proc.stdin
     runmain(pipe)
     proc.terminate()
-    # if sys.platform == 'win32':
-    # os.chdir(os.path.expanduser('~'))
-    # shutil.rmtree(bhdir)
