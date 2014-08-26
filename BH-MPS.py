@@ -27,7 +27,7 @@ numthreads = 6
 appname = 'dmrg'
 appname = 'mps_optim'
 
-L = 50
+L = 20
 sweeps = 20
 maxstates = 200  # 1000
 warmup = 100
@@ -63,7 +63,7 @@ parmsbase = {
     # 'ietl_jcd_gmres': 0,
     'MEASURE_LOCAL[Local density]': "n",
     'MEASURE_LOCAL[Local density squared]': "n2",
-    'MEASURE_CORRELATIONS[Correlation function]': "bdag:b",
+    'MEASURE_CORRELATIONS[Onebody density matrix]': "bdag:b",
     'LATTICE': lattice,
     'MODEL': "boson Hubbard",
     'CONSERVED_QUANTUMNUMBERS': 'N',
@@ -151,10 +151,11 @@ alpha = 1.1e7;
 Ng = np.sqrt(N) * g13;
 
 def JW(W):
-    J = np.zeros(L)
-    for i in range(0, L-1):
+    lenW = len(W)
+    J = np.zeros(lenW)
+    for i in range(0, lenW-1):
         J[i] = alpha * W[i] * W[i+1] / (np.sqrt(Ng * Ng + W[i] * W[i]) * np.sqrt(Ng * Ng + W[i+1] * W[i+1]))
-    J[L-1] = alpha * W[L-1] * W[0] / (np.sqrt(Ng * Ng + W[L-1] * W[L-1]) * np.sqrt(Ng * Ng + W[0] * W[0]))
+    J[lenW-1] = alpha * W[lenW-1] * W[0] / (np.sqrt(Ng * Ng + W[lenW-1] * W[lenW-1]) * np.sqrt(Ng * Ng + W[0] * W[0]))
     return J
 
 
@@ -176,15 +177,15 @@ def rundmrg(i, t, N, it, iN):
 
 def runmain(pipe):
     # ts = np.linspace(0.05, 0.3, 15).tolist()
-    ts = np.linspace(4e10, 2.5e11, 5).tolist()
+    ts = np.linspace(4e10, 2.5e11, 3).tolist()
     ti = int(sys.argv[4])
     if ti >= 0:
         ts = [ts[ti]]
+    ts = [8e10]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
     Ns = range(1, 2 * L + 1, 1)
-    # Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
@@ -281,7 +282,7 @@ def runmain(pipe):
                         # n2res[it][iN][ip] = s.y[0]
                         n2res[it][iN] = s.y
                         break
-                    if case('Correlation function'):
+                    if case('Onebody density matrix'):
                         # for x, y in zip(s.x, s.y[0]):
                         # Cres[it][iN][ip][tuple(x)] = y
                         for ieig, sy in enumerate(s.y):
@@ -314,6 +315,9 @@ def runmain(pipe):
     res += 'Wres[{0}]={1};\n'.format(resi, mathformat([speckle(Wi) for Wi in ts]))
     res += 'Jres[{0}]={1};\n'.format(resi, mathformat([JW(speckle(Wi)) for Wi in ts]))
     res += 'Ures[{0}]={1};\n'.format(resi, mathformat([UW(speckle(Wi)) for Wi in ts]))
+    res += 'Wmres[{0}]={1};\n'.format(resi, mathformat([Wi for Wi in ts]))
+    res += 'Jmres[{0}]={1};\n'.format(resi, mathformat([JW(np.array([Wi,Wi]))[0] for Wi in ts]))
+    res += 'Umres[{0}]={1};\n'.format(resi, mathformat([UW(np.array([Wi]))[0] for Wi in ts]))
     res += 'neigen[{0}]={1};\n'.format(resi, neigen)
     res += 'delta[{0}]={1};\n'.format(resi, delta)
     res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
@@ -343,12 +347,6 @@ def runmain(pipe):
 
     shutil.make_archive(resipath, 'zip', resipath)
     shutil.rmtree(resipath)
-
-
-# def startmain(pipe):
-#     main_thread = threading.Thread(target=runmain, args=(pipe,));
-#     main_thread.start()
-#     return False
 
 
 if __name__ == '__main__':
