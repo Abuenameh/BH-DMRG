@@ -22,7 +22,12 @@ try:
 except:
     import pickle
 
-numthreads = 6
+if sys.platform == 'darwin':
+    numthreads = 6
+elif sys.platform == 'linux2':
+    numthreads = 15
+else:
+    numthreads = 1
 
 appname = 'dmrg'
 appname = 'mps_optim'
@@ -48,7 +53,7 @@ else:
 if sys.platform == 'darwin':
     bhdir = '/tmp/BH-MPS'
 elif sys.platform == 'linux2':
-    bhdir = '/mnt/BH-DMRG'
+    bhdir = '/tmp/BH-MPS'
 elif sys.platform == 'win32':
     bhdir = tempfile.mkdtemp()
 
