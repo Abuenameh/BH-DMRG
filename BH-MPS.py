@@ -176,7 +176,8 @@ def runmain(pipe):
     ti = int(sys.argv[4])
     if ti >= 0:
         ts = [ts[ti]]
-    ts = [10e10]
+    ts = [11e10]
+    ts = [2.5e11]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
