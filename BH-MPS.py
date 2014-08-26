@@ -34,8 +34,6 @@ warmup = 100
 nmax = 7
 truncerror = 0  # 1e-10
 seed = 100
-reps = 3
-neigen = 1
 
 if len(sys.argv) < 5:
     print('Insufficient number of command line arguments.')
@@ -60,7 +58,6 @@ parmsbase = {
     # 'seed': seed,
     'TEMP_DIRECTORY': bhdir,
     'storagedir': bhdir,
-    # 'ietl_jcd_gmres': 0,
     'MEASURE_LOCAL[Local density]': "n",
     'MEASURE_LOCAL[Local density squared]': "n2",
     'MEASURE_CORRELATIONS[Onebody density matrix]': "bdag:b",
@@ -68,7 +65,6 @@ parmsbase = {
     'MODEL': "boson Hubbard",
     'CONSERVED_QUANTUMNUMBERS': 'N',
     'SWEEPS': sweeps,
-    'NUMBER_EIGENVALUES': neigen,
     'L': L,
     'MAXSTATES': maxstates,
     # 'NUM_WARMUP_STATES': warmup,
@@ -169,7 +165,6 @@ def rundmrg(i, t, N, it, iN):
                                        'U': 'get(x,' + ",".join([str(Ui) for Ui in UW(speckle(t))]) + ')', 'it': it,
                                        'iN': iN}.items())]
     # parms = [x for x in itertools.chain(parms, parms)]
-    # parms = [x for x in itertools.chain.from_iterable(itertools.repeat(parms, reps))]
     # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication(app(appname), input_file, writexml=True)
@@ -181,11 +176,12 @@ def runmain(pipe):
     ti = int(sys.argv[4])
     if ti >= 0:
         ts = [ts[ti]]
-    ts = [8e10]
+    ts = [10e10]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
     Ns = range(1, 2 * L + 1, 1)
+    # Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
@@ -206,7 +202,7 @@ def runmain(pipe):
     # Ns = [L+1]
     # Do L+2 at some point
 
-    dims = [len(ts), len(Ns), neigen]
+    dims = [len(ts), len(Ns)]
     ndims = dims + [L]
     Cdims = dims + [L, L]
 
@@ -260,54 +256,58 @@ def runmain(pipe):
 
     data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     for d in data:
-        try:
-            it = int(d[0].props['it'])
-            iN = int(d[0].props['iN'])
-            # ip = int(d[0].props['ip'])
-            for s in d:
-                for case in switch(s.props['observable']):
-                    if case('Truncation error'):
-                        # trunc[it][iN][ip] = s.y[0]
-                        trunc[it][iN] = s.y
-                        break
-                    if case('Energy'):
-                        # E0res[it][iN][ip] = s.y[0]
-                        E0res[it][iN] = s.y
-                        break
-                    if case('Local density'):
-                        # nres[it][iN][ip] = s.y[0]
-                        nres[it][iN] = s.y
-                        break
-                    if case('Local density squared'):
-                        # n2res[it][iN][ip] = s.y[0]
-                        n2res[it][iN] = s.y
-                        break
-                    if case('Onebody density matrix'):
-                        # for x, y in zip(s.x, s.y[0]):
-                        # Cres[it][iN][ip][tuple(x)] = y
-                        for ieig, sy in enumerate(s.y):
-                            for x, y in zip(s.x, sy):
-                                Cres[it][iN][ieig][tuple(x)] = y
-                        break
-            for ieig in range(neigen):
-                Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
-                cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
-        except Exception as e:
-            print(e.message)
+        # try:
+        it = int(d[0].props['it'])
+        iN = int(d[0].props['iN'])
+        # ip = int(d[0].props['ip'])
+        for s in d:
+            for case in switch(s.props['observable']):
+                if case('Truncation error'):
+                    # trunc[it][iN][ip] = s.y[0]
+                    trunc[it][iN] = s.y
+                    break
+                if case('Energy'):
+                    # E0res[it][iN][ip] = s.y[0]
+                    E0res[it][iN] = s.y
+                    break
+                if case('Local density'):
+                    # nres[it][iN][ip] = s.y[0]
+                    nres[it][iN] = s.y
+                    break
+                if case('Local density squared'):
+                    # n2res[it][iN][ip] = s.y[0]
+                    n2res[it][iN] = s.y
+                    break
+                if case('Onebody density matrix'):
+                    # for x, y in zip(s.x, s.y[0]):
+                    # Cres[it][iN][ip][tuple(x)] = y
+                    for x, y in zip(s.x, s.y[0]):
+                        Cres[it][iN][tuple(x)] = y
+                    # for ieig, sy in enumerate(s.y):
+                    #     for x, y in zip(s.x, sy):
+                    #         Cres[it][iN][ieig][tuple(x)] = y
+                    break
+        Cres[it][iN][range(L), range(L)] = nres[it][iN]
+        cres[it][iN] = Cres[it][iN] / np.sqrt(np.outer(nres[it][iN], nres[it][iN]))
+        # for ieig in range(neigen):
+        #     Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
+        #     cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
+        # except Exception as e:
+        #     print(e.message)
 
-    for it in range(len(ts)):
-        for iN in range(len(Ns)):
-            try:
-                m = min(E0res[it][iN])
-                ieig = np.where(E0res[it][iN] == m)[0][0]
-                truncmin[it][iN] = trunc[it][iN][ieig]
-                E0minres[it][iN] = E0res[it][iN][ieig]
-                nminres[it][iN] = nres[it][iN][ieig]
-                n2minres[it][iN] = n2res[it][iN][ieig]
-                Cminres[it][iN] = Cres[it][iN][ieig]
-                cminres[it][iN] = cres[it][iN][ieig]
-            except Exception as e:
-                print(e.message)
+    # for it in range(len(ts)):
+    #     for iN in range(len(Ns)):
+    #         try:
+    #             m = min(E0res[it][iN])
+    #             ieig = np.where(E0res[it][iN] == m)[0][0]
+    #             truncmin[it][iN] = trunc[it][iN][ieig]
+    #             E0minres[it][iN] = E0res[it][iN][ieig]
+    #             nminres[it][iN] = nres[it][iN][ieig]
+    #             n2minres[it][iN] = n2res[it][iN][ieig]
+    #             Cminres[it][iN] = Cres[it][iN][ieig]
+    #             cminres[it][iN] = cres[it][iN][ieig]
+    #         except Exception as e:
+    #             print(e.message)
 
     end = datetime.datetime.now()
 
@@ -318,7 +318,7 @@ def runmain(pipe):
     res += 'Wmres[{0}]={1};\n'.format(resi, mathformat([Wi for Wi in ts]))
     res += 'Jmres[{0}]={1};\n'.format(resi, mathformat([JW(np.array([Wi,Wi]))[0] for Wi in ts]))
     res += 'Umres[{0}]={1};\n'.format(resi, mathformat([UW(np.array([Wi]))[0] for Wi in ts]))
-    res += 'neigen[{0}]={1};\n'.format(resi, neigen)
+    # res += 'neigen[{0}]={1};\n'.format(resi, neigen)
     res += 'delta[{0}]={1};\n'.format(resi, delta)
     res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
     res += 'Lres[{0}]={1};\n'.format(resi, L)
@@ -336,11 +336,11 @@ def runmain(pipe):
     res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
     res += 'cres[{0}]={1};\n'.format(resi, mathformat(cres))
     res += 'truncmin[{0}]={1};\n'.format(resi, mathformat(truncmin))
-    res += 'E0minres[{0}]={1};\n'.format(resi, mathformat(E0minres))
-    res += 'nminres[{0}]={1};\n'.format(resi, mathformat(nminres))
-    res += 'n2minres[{0}]={1};\n'.format(resi, mathformat(n2minres))
-    res += 'Cminres[{0}]={1};\n'.format(resi, mathformat(Cminres))
-    res += 'cminres[{0}]={1};\n'.format(resi, mathformat(cminres))
+    # res += 'E0minres[{0}]={1};\n'.format(resi, mathformat(E0minres))
+    # res += 'nminres[{0}]={1};\n'.format(resi, mathformat(nminres))
+    # res += 'n2minres[{0}]={1};\n'.format(resi, mathformat(n2minres))
+    # res += 'Cminres[{0}]={1};\n'.format(resi, mathformat(Cminres))
+    # res += 'cminres[{0}]={1};\n'.format(resi, mathformat(cminres))
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
 
     resf.write(res)
@@ -354,7 +354,7 @@ if __name__ == '__main__':
     if sys.platform == 'darwin':
         respath = '/Users/Abuenameh/Documents/Simulation Results/BH-MPS/'
     elif sys.platform == 'linux2':
-        respath = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-DMRG/'
+        respath = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-MPS/'
     elif sys.platform == 'win32':
         respath = 'C:/Users/abuenameh/Dropbox/Server/BH-DMRG/'
     if not os.path.exists(respath):
