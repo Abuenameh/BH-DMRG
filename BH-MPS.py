@@ -192,7 +192,7 @@ def runmain(pipe):
     # if ti >= 0:
     #     ts = [ts[ti]]
     # ts = [11e10]
-    ts = [2.5e11]
+    # ts = [2.5e11]
     # ts = [8e10]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
@@ -202,7 +202,7 @@ def runmain(pipe):
 
     Ns = range(1, 2 * L + 1, 1)
     # Ns = range(2*L-5,2*L+1,1)
-    Ns = [1]
+    # Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
