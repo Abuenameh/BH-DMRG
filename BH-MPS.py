@@ -64,7 +64,7 @@ parmsbase = {
     # 'seed': seed,
     # 'TEMP_DIRECTORY': bhdir,
     # 'storagedir': bhdir,
-    'donotsave' : 1,
+    'donotsave' : 0,
     'MEASURE_LOCAL[Local density]': "n",
     'MEASURE_LOCAL[Local density squared]': "n2",
     'MEASURE_CORRELATIONS[Onebody density matrix]': "bdag:b",
