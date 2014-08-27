@@ -401,6 +401,12 @@ if __name__ == '__main__':
                 pass
         resipath = respath + 'res.' + str(resi)
         resfile = resipath + '.txt'
+        while os.path.isfile(resfile):
+            resi += 1
+            resipath = respath + 'res.' + str(resi)
+            resfile = resipath + '.txt'
+        resipath = respath + 'res.' + str(resi)
+        resfile = resipath + '.txt'
     resf = open(resfile, 'w')
     datadir = resipath + '/'
     os.makedirs(datadir)
