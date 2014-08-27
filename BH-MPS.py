@@ -13,6 +13,7 @@ import threading
 import os
 import tempfile
 import shutil
+import glob
 from mathematica import mathformat
 from switch import switch
 from subprocess import PIPE, Popen
@@ -180,6 +181,8 @@ def rundmrg(i, t, N, it, iN):
     # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication(app(appname), input_file, writexml=True)
+    checkpoints = glob.glob(filenameprefix + str(i) + '*.chkp')
+    [shutil.rmtree(chkp) for chkp in checkpoints]
     shutil.rmtree(storagedir)
 
 
@@ -364,8 +367,8 @@ def runmain(pipe):
 
     resf.write(res)
 
-    shutil.make_archive(resipath, 'zip', resipath)
-    shutil.rmtree(resipath)
+    # shutil.make_archive(resipath, 'zip', resipath)
+    # shutil.rmtree(resipath)
 
 
 if __name__ == '__main__':
