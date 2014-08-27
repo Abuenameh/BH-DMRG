@@ -30,7 +30,6 @@ elif sys.platform == 'linux2':
 else:
     numthreads = 1
 
-appname = 'dmrg'
 appname = 'mps_optim'
 
 L = 50
@@ -181,8 +180,8 @@ def rundmrg(i, t, N, it, iN):
     # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication(app(appname), input_file, writexml=True)
-    checkpoints = glob.glob(filenameprefix + str(i) + '*.chkp')
-    [shutil.rmtree(chkp) for chkp in checkpoints]
+    # checkpoints = glob.glob(filenameprefix + str(i) + '*.chkp')
+    # [shutil.rmtree(chkp) for chkp in checkpoints]
     shutil.rmtree(storagedir)
 
 
@@ -193,7 +192,7 @@ def runmain(pipe):
     # if ti >= 0:
     #     ts = [ts[ti]]
     # ts = [11e10]
-    # ts = [2.5e11]
+    ts = [2.5e11]
     # ts = [8e10]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
@@ -203,7 +202,7 @@ def runmain(pipe):
 
     Ns = range(1, 2 * L + 1, 1)
     # Ns = range(2*L-5,2*L+1,1)
-    # Ns = [1]
+    Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
@@ -367,6 +366,9 @@ def runmain(pipe):
 
     resf.write(res)
 
+    if sys.platform == 'linux2':
+        shutil.copy(resfile, '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-MPS')
+
     # shutil.make_archive(resipath, 'zip', resipath)
     # shutil.rmtree(resipath)
 
@@ -388,6 +390,10 @@ if __name__ == '__main__':
     resfile = resipath + '.txt'
     while os.path.isfile(resfile):
         resi += 1
+        resipath = respath + 'res.' + str(resi)
+        resfile = resipath + '.txt'
+    if sys.platform == 'linux2':
+        respath = '/media/ubuntu/Results/BH-MPS/'
         resipath = respath + 'res.' + str(resi)
         resfile = resipath + '.txt'
     resf = open(resfile, 'w')
