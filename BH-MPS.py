@@ -40,7 +40,7 @@ nmax = 7
 truncerror = 0  # 1e-10
 seed = 100
 
-if len(sys.argv) < 5:
+if len(sys.argv) < 4:
     print('Insufficient number of command line arguments.')
     quit(1)
 
