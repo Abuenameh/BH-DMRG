@@ -64,6 +64,7 @@ parmsbase = {
     # 'seed': seed,
     # 'TEMP_DIRECTORY': bhdir,
     # 'storagedir': bhdir,
+    'donotsave' : True,
     'MEASURE_LOCAL[Local density]': "n",
     'MEASURE_LOCAL[Local density squared]': "n2",
     'MEASURE_CORRELATIONS[Onebody density matrix]': "bdag:b",
@@ -181,8 +182,8 @@ def rundmrg(i, t, N, it, iN):
     # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication(app(appname), input_file, writexml=True)
-    checkpoints = glob.glob(filenameprefix + str(i) + '*.chkp')
-    [shutil.rmtree(chkp) for chkp in checkpoints]
+    # checkpoints = glob.glob(filenameprefix + str(i) + '*.chkp')
+    # [shutil.rmtree(chkp) for chkp in checkpoints]
     shutil.rmtree(storagedir)
 
 
