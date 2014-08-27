@@ -61,8 +61,8 @@ filenameprefix = ''
 
 parmsbase = {
     # 'seed': seed,
-    'TEMP_DIRECTORY': bhdir,
-    'storagedir': bhdir,
+    # 'TEMP_DIRECTORY': bhdir,
+    # 'storagedir': bhdir,
     'MEASURE_LOCAL[Local density]': "n",
     'MEASURE_LOCAL[Local density squared]': "n2",
     'MEASURE_CORRELATIONS[Onebody density matrix]': "bdag:b",
@@ -170,14 +170,17 @@ def UW(W):
 
 
 def rundmrg(i, t, N, it, iN):
+    storagedir = bhdir + '/' + str(i)
+    os.makedirs(storagedir)
     # parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
     parms = [dict(parmsbase.items() + {'N_total': N, 't': 'get(x,' + ",".join([str(Ji) for Ji in JW(speckle(t))]) + ')',
                                        'U': 'get(x,' + ",".join([str(Ui) for Ui in UW(speckle(t))]) + ')', 'it': it,
-                                       'iN': iN}.items())]
+                                       'iN': iN, 'storagedir': storagedir}.items())]
     # parms = [x for x in itertools.chain(parms, parms)]
     # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
     pyalps.runApplication(app(appname), input_file, writexml=True)
+    shutil.rmtree(storagedir)
 
 
 def runmain(pipe):
