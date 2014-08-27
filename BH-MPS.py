@@ -32,7 +32,7 @@ else:
 appname = 'dmrg'
 appname = 'mps_optim'
 
-L = 20
+L = 50
 sweeps = 20
 maxstates = 200  # 1000
 warmup = 100
@@ -73,8 +73,7 @@ parmsbase = {
     'L': L,
     'MAXSTATES': maxstates,
     # 'NUM_WARMUP_STATES': warmup,
-    'Nmax': nmax,
-    'U': 1
+    'Nmax': nmax
 }
 
 if truncerror > 0:
@@ -125,6 +124,12 @@ speckles = {}
 def speckle(W):
     if speckles.has_key(W):
         return speckles[W]
+
+    if delta == 0:
+        speckleW = np.zeros(L)
+        speckleW.fill(W)
+        speckles[W] = speckleW
+        return speckleW
 
     np.random.seed(seed)
 
@@ -177,16 +182,21 @@ def rundmrg(i, t, N, it, iN):
 
 def runmain(pipe):
     # ts = np.linspace(0.05, 0.3, 15).tolist()
-    ts = np.linspace(4e10, 2.5e11, 3).tolist()
-    ti = int(sys.argv[4])
-    if ti >= 0:
-        ts = [ts[ti]]
-    ts = [11e10]
-    ts = [2.5e11]
+    ts = np.linspace(5e10, 2.5e11, 5).tolist()
+    # ti = int(sys.argv[4])
+    # if ti >= 0:
+    #     ts = [ts[ti]]
+    # ts = [11e10]
+    # ts = [2.5e11]
+    # ts = [8e10]
     # ts = [np.linspace(0.01, 0.3, 10).tolist()[2]]
     # ts = [0.3]
     # ts = np.linspace(0.3, 0.3, 1).tolist()
+
+    [speckle(t) for t in ts]
+
     Ns = range(1, 2 * L + 1, 1)
+    # Ns = range(2*L-5,2*L+1,1)
     # Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
