@@ -394,6 +394,11 @@ if __name__ == '__main__':
         resfile = resipath + '.txt'
     if sys.platform == 'linux2':
         respath = '/media/ubuntu/Results/BH-MPS/'
+        if not os.path.exists(respath):
+            try:
+                os.makedirs(respath)
+            except:
+                pass
         resipath = respath + 'res.' + str(resi)
         resfile = resipath + '.txt'
     resf = open(resfile, 'w')
