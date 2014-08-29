@@ -33,7 +33,7 @@ else:
 appname = 'mps_optim'
 
 L = 50
-sweeps = 20
+sweeps = 50
 maxstates = 200  # 1000
 warmup = 100
 nmax = 7
@@ -188,6 +188,7 @@ def rundmrg(i, t, N, it, iN):
 def runmain(pipe):
     # ts = np.linspace(0.05, 0.3, 15).tolist()
     ts = np.linspace(5e10, 2.5e11, 5).tolist()
+    ts = [ts[0]]
     # ti = int(sys.argv[4])
     # if ti >= 0:
     #     ts = [ts[ti]]
@@ -201,6 +202,7 @@ def runmain(pipe):
     [speckle(t) for t in ts]
 
     Ns = range(1, 2 * L + 1, 1)
+    Ns = range(30, 60, 1)
     # Ns = range(2*L-5,2*L+1,1)
     # Ns = [1]
     # Ns = range(1,15,1)
