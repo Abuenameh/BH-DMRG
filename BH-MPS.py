@@ -33,7 +33,7 @@ else:
 appname = 'mps_optim'
 
 L = 50
-sweeps = 50
+sweeps = 150
 maxstates = 200  # 1000
 warmup = 100
 nmax = 7
