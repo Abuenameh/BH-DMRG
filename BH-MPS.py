@@ -202,7 +202,7 @@ def runmain(pipe):
     [speckle(t) for t in ts]
 
     Ns = range(1, 2 * L + 1, 1)
-    Ns = range(30, 60, 1)
+    # Ns = range(30, 60, 1)
     # Ns = range(2*L-5,2*L+1,1)
     # Ns = [1]
     # Ns = range(1,15,1)
@@ -367,6 +367,8 @@ def runmain(pipe):
     res += 'runtime[{0}]=\"{1}\";\n'.format(resi, end - start)
 
     resf.write(res)
+    resf.flush()
+    os.fsync(resf.fileno())
 
     if sys.platform == 'linux2':
         shutil.copy(resfile, '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-MPS')
