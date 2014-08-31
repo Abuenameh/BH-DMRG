@@ -215,7 +215,7 @@ def runmain(pipe):
     Ns = range(30, 101, 1)
     Ns = range(50, 80, 1)
     # Ns = range(2*L-5,2*L+1,1)
-    Ns = [1]
+    # Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
