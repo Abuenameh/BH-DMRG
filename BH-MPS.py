@@ -13,6 +13,7 @@ import threading
 import os
 import tempfile
 import shutil
+import time
 import glob
 from mathematica import mathformat
 from switch import switch
@@ -33,12 +34,15 @@ else:
 appname = 'mps_optim'
 
 L = 50
-sweeps = 150
+sweeps = 200
 maxstates = 200  # 1000
 warmup = 100
 nmax = 7
 truncerror = 0  # 1e-10
 seed = 100
+neigen = 3
+
+# sweeps = 5
 
 if len(sys.argv) < 4:
     print('Insufficient number of command line arguments.')
@@ -73,6 +77,7 @@ parmsbase = {
     'L': L,
     'MAXSTATES': maxstates,
     # 'NUM_WARMUP_STATES': warmup,
+    'NUMBER_EIGENVALUES': neigen,
     'Nmax': nmax
 }
 
@@ -175,7 +180,7 @@ def rundmrg(i, t, N, it, iN):
     # parms = [dict(parmsbase.items() + {'N_total': N, 't': t, 'it': it, 'iN': iN}.items())]
     parms = [dict(parmsbase.items() + {'N_total': N, 't': 'get(x,' + ",".join([str(Ji) for Ji in JW(speckle(t))]) + ')',
                                        'U': 'get(x,' + ",".join([str(Ui) for Ui in UW(speckle(t))]) + ')', 'it': it,
-                                       'iN': iN, 'storagedir': storagedir}.items())]
+                                       'iN': iN, 'storagedir': storagedir, 'seed': str(int(time.time()))}.items())]
     # parms = [x for x in itertools.chain(parms, parms)]
     # parms = [dict(parm.items() + {'ip': j, 'seed': seed0 + j}.items()) for j, parm in enumerate(parms)]
     input_file = pyalps.writeInputFiles(filenameprefix + str(i), parms)
@@ -184,6 +189,11 @@ def rundmrg(i, t, N, it, iN):
     # [shutil.rmtree(chkp) for chkp in checkpoints]
     shutil.rmtree(storagedir)
 
+def make2d(v):
+    if len(v.shape) == 1:
+        return np.array([v])
+    else:
+        return v
 
 def runmain(pipe):
     # ts = np.linspace(0.05, 0.3, 15).tolist()
@@ -202,9 +212,10 @@ def runmain(pipe):
     [speckle(t) for t in ts]
 
     Ns = range(1, 2 * L + 1, 1)
-    # Ns = range(30, 60, 1)
+    Ns = range(30, 101, 1)
+    Ns = range(50, 80, 1)
     # Ns = range(2*L-5,2*L+1,1)
-    # Ns = [1]
+    Ns = [1]
     # Ns = range(1,15,1)
     # Ns = range(1,16,1)
     # Ns = range(1, L, 1)
@@ -225,7 +236,7 @@ def runmain(pipe):
     # Ns = [L+1]
     # Do L+2 at some point
 
-    dims = [len(ts), len(Ns)]
+    dims = [len(ts), len(Ns), neigen]
     ndims = dims + [L]
     Cdims = dims + [L, L]
 
@@ -277,6 +288,26 @@ def runmain(pipe):
 
     ip = np.zeros([len(ts), len(Ns)])
 
+    res = ''
+    res += 'Wres[{0}]={1};\n'.format(resi, mathformat([speckle(Wi) for Wi in ts]))
+    res += 'Jres[{0}]={1};\n'.format(resi, mathformat([JW(speckle(Wi)) for Wi in ts]))
+    res += 'Ures[{0}]={1};\n'.format(resi, mathformat([UW(speckle(Wi)) for Wi in ts]))
+    res += 'Wmres[{0}]={1};\n'.format(resi, mathformat([Wi for Wi in ts]))
+    res += 'Jmres[{0}]={1};\n'.format(resi, mathformat([JW(np.array([Wi,Wi]))[0] for Wi in ts]))
+    res += 'Umres[{0}]={1};\n'.format(resi, mathformat([UW(np.array([Wi]))[0] for Wi in ts]))
+    res += 'neigen[{0}]={1};\n'.format(resi, neigen)
+    res += 'delta[{0}]={1};\n'.format(resi, delta)
+    res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
+    res += 'Lres[{0}]={1};\n'.format(resi, L)
+    res += 'sweeps[{0}]={1};\n'.format(resi, sweeps)
+    res += 'maxstates[{0}]={1};\n'.format(resi, maxstates)
+    res += 'warmup[{0}]={1};\n'.format(resi, warmup)
+    res += 'truncerror[{0}]={1};\n'.format(resi, truncerror)
+    res += 'nmax[{0}]={1};\n'.format(resi, nmax)
+    res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
+    res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
+    res += 'mures[{0}]={1};\n'.format(resi, mathformat(mu))
+
     data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     for d in data:
         # try:
@@ -287,31 +318,42 @@ def runmain(pipe):
             for case in switch(s.props['observable']):
                 if case('Truncation error'):
                     # trunc[it][iN][ip] = s.y[0]
-                    trunc[it][iN] = s.y
+                    # trunc[it][iN] = s.y
                     break
                 if case('Energy'):
+                    for i, sy in enumerate(s.y):
+                        E0res[it][iN][i] = sy
                     # E0res[it][iN][ip] = s.y[0]
-                    E0res[it][iN] = s.y
+                    # E0res[it][iN] = s.y
+                    # for sy in s.y
                     break
                 if case('Local density'):
+                    for i, sy in enumerate(make2d(s.y)):
+                        nres[it][iN][i] = sy
                     # nres[it][iN][ip] = s.y[0]
-                    nres[it][iN] = s.y
+                    # nres[it][iN] = s.y
                     break
                 if case('Local density squared'):
+                    for i, sy in enumerate(make2d(s.y)):
+                        n2res[it][iN][i] = sy
                     # n2res[it][iN][ip] = s.y[0]
-                    n2res[it][iN] = s.y
+                    # n2res[it][iN] = s.y
                     break
                 if case('Onebody density matrix'):
+                    for i, sy in enumerate(s.y):
+                        for x, y in zip(s.x, sy):
+                            Cres[it][iN][i][tuple(x)] = y
                     # for x, y in zip(s.x, s.y[0]):
                     # Cres[it][iN][ip][tuple(x)] = y
-                    for x, y in zip(s.x, s.y[0]):
-                        Cres[it][iN][tuple(x)] = y
+                    # for x, y in zip(s.x, s.y[0]):
+                    #     Cres[it][iN][tuple(x)] = y
                     # for ieig, sy in enumerate(s.y):
                     #     for x, y in zip(s.x, sy):
                     #         Cres[it][iN][ieig][tuple(x)] = y
                     break
-        Cres[it][iN][range(L), range(L)] = nres[it][iN]
-        cres[it][iN] = Cres[it][iN] / np.sqrt(np.outer(nres[it][iN], nres[it][iN]))
+        for i in range(neigen):
+            Cres[it][iN][i][range(L), range(L)] = nres[it][iN][i]
+            cres[it][iN][i] = Cres[it][iN][i] / np.sqrt(np.outer(nres[it][iN][i], nres[it][iN][i]))
         # for ieig in range(neigen):
         #     Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
         #     cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
@@ -334,31 +376,12 @@ def runmain(pipe):
 
     end = datetime.datetime.now()
 
-    res = ''
-    res += 'Wres[{0}]={1};\n'.format(resi, mathformat([speckle(Wi) for Wi in ts]))
-    res += 'Jres[{0}]={1};\n'.format(resi, mathformat([JW(speckle(Wi)) for Wi in ts]))
-    res += 'Ures[{0}]={1};\n'.format(resi, mathformat([UW(speckle(Wi)) for Wi in ts]))
-    res += 'Wmres[{0}]={1};\n'.format(resi, mathformat([Wi for Wi in ts]))
-    res += 'Jmres[{0}]={1};\n'.format(resi, mathformat([JW(np.array([Wi,Wi]))[0] for Wi in ts]))
-    res += 'Umres[{0}]={1};\n'.format(resi, mathformat([UW(np.array([Wi]))[0] for Wi in ts]))
-    # res += 'neigen[{0}]={1};\n'.format(resi, neigen)
-    res += 'delta[{0}]={1};\n'.format(resi, delta)
-    res += 'trunc[{0}]={1};\n'.format(resi, mathformat(trunc))
-    res += 'Lres[{0}]={1};\n'.format(resi, L)
-    res += 'sweeps[{0}]={1};\n'.format(resi, sweeps)
-    res += 'maxstates[{0}]={1};\n'.format(resi, maxstates)
-    res += 'warmup[{0}]={1};\n'.format(resi, warmup)
-    res += 'truncerror[{0}]={1};\n'.format(resi, truncerror)
-    res += 'nmax[{0}]={1};\n'.format(resi, nmax)
-    res += 'Nres[{0}]={1};\n'.format(resi, mathformat(Ns))
-    res += 'tres[{0}]={1};\n'.format(resi, mathformat(ts))
-    res += 'mures[{0}]={1};\n'.format(resi, mathformat(mu))
     res += 'E0res[{0}]={1};\n'.format(resi, mathformat(E0res))
     res += 'nres[{0}]={1};\n'.format(resi, mathformat(nres))
     res += 'n2res[{0}]={1};\n'.format(resi, mathformat(n2res))
     res += 'Cres[{0}]={1};\n'.format(resi, mathformat(Cres))
     res += 'cres[{0}]={1};\n'.format(resi, mathformat(cres))
-    res += 'truncmin[{0}]={1};\n'.format(resi, mathformat(truncmin))
+    # res += 'truncmin[{0}]={1};\n'.format(resi, mathformat(truncmin))
     # res += 'E0minres[{0}]={1};\n'.format(resi, mathformat(E0minres))
     # res += 'nminres[{0}]={1};\n'.format(resi, mathformat(nminres))
     # res += 'n2minres[{0}]={1};\n'.format(resi, mathformat(n2minres))
