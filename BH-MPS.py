@@ -34,7 +34,7 @@ else:
 appname = 'mps_optim'
 
 L = 50
-sweeps = 20
+sweeps = 10
 maxstates = 400  # 1000
 warmup = 100
 nmax = 7
@@ -49,7 +49,7 @@ if len(sys.argv) < 4:
     quit(1)
 
 delta = float(sys.argv[2])
-if delta == 0:
+if delta == 0 and False:
     lattice = "open chain lattice"
 else:
     lattice = "inhomogeneous chain lattice"
@@ -358,7 +358,8 @@ def runmain(pipe):
             # for ieig in range(neigen):
             #     Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
             #     cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
-        except Exception as e:
+        # except Exception as e:
+        except BufferError as e:
             print(e.message)
 
     # for it in range(len(ts)):
@@ -404,7 +405,7 @@ def runmain(pipe):
 if __name__ == '__main__':
     resi = int(sys.argv[1])
     if sys.platform == 'darwin':
-        respath = '/Users/Abuenameh/Documents/Simulation Results/BH-MPS/'
+        respath = '/Users/Abuenameh/Documents/SimulationResults/BH-MPS/'
     elif sys.platform == 'linux2':
         respath = '/home/ubuntu/Dropbox/Amazon EC2/Simulation Results/BH-MPS/'
     elif sys.platform == 'win32':
