@@ -34,8 +34,8 @@ else:
 appname = 'mps_optim'
 
 L = 50
-sweeps = 200
-maxstates = 200  # 1000
+sweeps = 20
+maxstates = 400  # 1000
 warmup = 100
 nmax = 7
 truncerror = 0  # 1e-10
@@ -214,6 +214,7 @@ def runmain(pipe):
     Ns = range(1, 2 * L + 1, 1)
     Ns = range(30, 101, 1)
     Ns = range(50, 80, 1)
+    Ns = [70]
     # Ns = range(2*L-5,2*L+1,1)
     # Ns = [1]
     # Ns = range(1,15,1)
@@ -310,55 +311,55 @@ def runmain(pipe):
 
     data = pyalps.loadEigenstateMeasurements(pyalps.getResultFiles(prefix=filenameprefix))
     for d in data:
-        # try:
-        it = int(d[0].props['it'])
-        iN = int(d[0].props['iN'])
-        # ip = int(d[0].props['ip'])
-        for s in d:
-            for case in switch(s.props['observable']):
-                if case('Truncation error'):
-                    # trunc[it][iN][ip] = s.y[0]
-                    # trunc[it][iN] = s.y
-                    break
-                if case('Energy'):
-                    for i, sy in enumerate(s.y):
-                        E0res[it][iN][i] = sy
-                    # E0res[it][iN][ip] = s.y[0]
-                    # E0res[it][iN] = s.y
-                    # for sy in s.y
-                    break
-                if case('Local density'):
-                    for i, sy in enumerate(make2d(s.y)):
-                        nres[it][iN][i] = sy
-                    # nres[it][iN][ip] = s.y[0]
-                    # nres[it][iN] = s.y
-                    break
-                if case('Local density squared'):
-                    for i, sy in enumerate(make2d(s.y)):
-                        n2res[it][iN][i] = sy
-                    # n2res[it][iN][ip] = s.y[0]
-                    # n2res[it][iN] = s.y
-                    break
-                if case('Onebody density matrix'):
-                    for i, sy in enumerate(s.y):
-                        for x, y in zip(s.x, sy):
-                            Cres[it][iN][i][tuple(x)] = y
-                    # for x, y in zip(s.x, s.y[0]):
-                    # Cres[it][iN][ip][tuple(x)] = y
-                    # for x, y in zip(s.x, s.y[0]):
-                    #     Cres[it][iN][tuple(x)] = y
-                    # for ieig, sy in enumerate(s.y):
-                    #     for x, y in zip(s.x, sy):
-                    #         Cres[it][iN][ieig][tuple(x)] = y
-                    break
-        for i in range(neigen):
-            Cres[it][iN][i][range(L), range(L)] = nres[it][iN][i]
-            cres[it][iN][i] = Cres[it][iN][i] / np.sqrt(np.outer(nres[it][iN][i], nres[it][iN][i]))
-        # for ieig in range(neigen):
-        #     Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
-        #     cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
-        # except Exception as e:
-        #     print(e.message)
+        try:
+            it = int(d[0].props['it'])
+            iN = int(d[0].props['iN'])
+            # ip = int(d[0].props['ip'])
+            for s in d:
+                for case in switch(s.props['observable']):
+                    if case('Truncation error'):
+                        # trunc[it][iN][ip] = s.y[0]
+                        # trunc[it][iN] = s.y
+                        break
+                    if case('Energy'):
+                        for i, sy in enumerate(s.y):
+                            E0res[it][iN][i] = sy
+                        # E0res[it][iN][ip] = s.y[0]
+                        # E0res[it][iN] = s.y
+                        # for sy in s.y
+                        break
+                    if case('Local density'):
+                        for i, sy in enumerate(make2d(s.y)):
+                            nres[it][iN][i] = sy
+                        # nres[it][iN][ip] = s.y[0]
+                        # nres[it][iN] = s.y
+                        break
+                    if case('Local density squared'):
+                        for i, sy in enumerate(make2d(s.y)):
+                            n2res[it][iN][i] = sy
+                        # n2res[it][iN][ip] = s.y[0]
+                        # n2res[it][iN] = s.y
+                        break
+                    if case('Onebody density matrix'):
+                        for i, sy in enumerate(s.y):
+                            for x, y in zip(s.x, sy):
+                                Cres[it][iN][i][tuple(x)] = y
+                        # for x, y in zip(s.x, s.y[0]):
+                        # Cres[it][iN][ip][tuple(x)] = y
+                        # for x, y in zip(s.x, s.y[0]):
+                        #     Cres[it][iN][tuple(x)] = y
+                        # for ieig, sy in enumerate(s.y):
+                        #     for x, y in zip(s.x, sy):
+                        #         Cres[it][iN][ieig][tuple(x)] = y
+                        break
+            for i in range(neigen):
+                Cres[it][iN][i][range(L), range(L)] = nres[it][iN][i]
+                cres[it][iN][i] = Cres[it][iN][i] / np.sqrt(np.outer(nres[it][iN][i], nres[it][iN][i]))
+            # for ieig in range(neigen):
+            #     Cres[it][iN][ieig][range(L), range(L)] = nres[it][iN][ieig]
+            #     cres[it][iN][ieig] = Cres[it][iN][ieig] / np.sqrt(np.outer(nres[it][iN][ieig], nres[it][iN][ieig]))
+        except Exception as e:
+            print(e.message)
 
     # for it in range(len(ts)):
     #     for iN in range(len(Ns)):
