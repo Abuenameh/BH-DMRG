@@ -34,13 +34,13 @@ else:
 appname = 'mps_optim'
 
 L = 50
-sweeps = 10
+sweeps = 200
 maxstates = 400  # 1000
 warmup = 100
 nmax = 7
 truncerror = 0  # 1e-10
 seed = 100
-neigen = 3
+neigen = 2
 
 # sweeps = 5
 
@@ -214,7 +214,7 @@ def runmain(pipe):
     Ns = range(1, 2 * L + 1, 1)
     Ns = range(30, 101, 1)
     Ns = range(50, 80, 1)
-    Ns = [70]
+    # Ns = [70]
     # Ns = range(2*L-5,2*L+1,1)
     # Ns = [1]
     # Ns = range(1,15,1)
